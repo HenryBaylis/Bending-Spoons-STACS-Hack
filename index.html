@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
+
+    #card {
+      display: none;
+      background: rgba(15, 15, 20, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 16px 18px;
+      width: 420px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      animation: slideIn 0.2s ease;
+    }
+
+    #card.visible { display: block; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 5px;
+    }
+
+    .transcript {
+      font-size: 13px;
+      color: rgba(255,255,255,0.65);
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .answer {
+      font-size: 14px;
+      color: #fff;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      margin-right: 6px;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    button {
+      -webkit-app-region: no-drag;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 7px;
+      color: rgba(255,255,255,0.6);
+      font-size: 12px;
+      padding: 5px 12px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="card">
+    <div class="label"><span class="dot"></span>Someone's asking you</div>
+    <div class="transcript" id="transcript"></div>
+    <div class="label" style="margin-bottom:6px">Suggested response</div>
+    <div class="answer" id="answer"></div>
+    <button onclick="dismiss()">Dismiss</button>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron')
+
+    ipcRenderer.on('question', (_, data) => {
+      document.getElementById('transcript').textContent = `"${data.transcript}"`
+      document.getElementById('answer').textContent = data.answer
+      document.getElementById('card').classList.add('visible')
+    })
+
+    ipcRenderer.on('dismiss', () => {
+      document.getElementById('card').classList.remove('visible')
+    })
+
+    function dismiss() {
+      document.getElementById('card').classList.remove('visible')
+    }
+  </script>
+</body>
+</html>
