@@ -139,7 +139,7 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 14px;
       padding: 14px 16px;
-      width: 420px;
+      width: 840px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.4);
       -webkit-app-region: drag;
     }
@@ -170,7 +170,36 @@
       50% { opacity: 0.3; }
     }
 
-    #live-section { margin-bottom: 10px; }
+    #live-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    #live-section > div { flex: 1; min-width: 0; }
+
+    .answers-toggle {
+      -webkit-app-region: no-drag;
+      flex-shrink: 0;
+      background: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      color: rgba(255,255,255,0.3);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      cursor: pointer;
+      margin-left: 8px;
+      margin-top: 1px;
+    }
+
+    .answers-toggle.on {
+      border-color: rgba(34,197,94,0.4);
+      color: rgba(34,197,94,0.7);
+    }
 
     #live-text {
       font-size: 12px;
@@ -280,6 +309,51 @@
       line-height: 1.4;
     }
 
+    #commitment-section {
+      display: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 8px;
+      margin-top: 2px;
+    }
+
+    #commitment-section.visible { display: block; }
+
+    #commitment-list {
+      max-height: 160px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .commitment-item {
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .commitment-item:last-child { border-bottom: none; }
+
+    .commitment-text {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.4;
+      margin-bottom: 5px;
+    }
+
+    .commitment-audio {
+      width: 100%;
+      height: 24px;
+      -webkit-app-region: no-drag;
+    }
+
+    .commitment-screenshot {
+      width: 100%;
+      border-radius: 4px;
+      margin-top: 4px;
+      opacity: 0.7;
+      cursor: pointer;
+    }
+
     button.dismiss-btn {
       -webkit-app-region: no-drag;
       background: rgba(255,255,255,0.08);
@@ -333,8 +407,11 @@
   <!-- Overlay card -->
   <div id="card">
     <div id="live-section">
-      <div class="label"><span class="dot"></span>Live</div>
-      <div id="live-text">—</div>
+      <div>
+        <div class="label"><span class="dot"></span>Live</div>
+        <div id="live-text">—</div>
+      </div>
+      <button class="answers-toggle on" id="answers-toggle" onclick="toggleAnswers()">Answers</button>
     </div>
 
     <div id="mention-section">
@@ -362,6 +439,11 @@
     <div id="history-section">
       <div class="label">History</div>
       <div id="history-list"></div>
+    </div>
+
+    <div id="commitment-section">
+      <div class="label">Commitments</div>
+      <div id="commitment-list"></div>
     </div>
   </div>
 
@@ -433,9 +515,13 @@
       document.getElementById('mention-section').classList.remove('visible')
       document.getElementById('history-section').classList.remove('visible')
       document.getElementById('history-list').innerHTML = ''
+      document.getElementById('commitment-section').classList.remove('visible')
+      document.getElementById('commitment-list').innerHTML = ''
       document.getElementById('live-text').textContent = '—'
       document.getElementById('summary-text').textContent = '—'
       mentionActiveUntil = 0
+      questionsEnabled = true
+      document.getElementById('answers-toggle').classList.add('on')
     })
 
     ipcRenderer.on('show-overlay', () => {
@@ -443,11 +529,27 @@
       document.getElementById('card').classList.add('visible')
     })
 
+    // Pass mouse events through when not hovering over the card
+    const card = document.getElementById('card')
+    card.addEventListener('mouseenter', () => ipcRenderer.send('set-ignore-mouse', false))
+    card.addEventListener('mouseleave', () => ipcRenderer.send('set-ignore-mouse', true))
+    ipcRenderer.send('set-ignore-mouse', true)
+
+    // ── Answers toggle ──
+    let questionsEnabled = true
+
+    function toggleAnswers() {
+      questionsEnabled = !questionsEnabled
+      const btn = document.getElementById('answers-toggle')
+      btn.classList.toggle('on', questionsEnabled)
+      if (!questionsEnabled) document.getElementById('question-section').classList.remove('visible')
+      ipcRenderer.send('toggle-questions', questionsEnabled)
+    }
+
     // ── Overlay events ──
     let mentionActiveUntil = 0
 
     ipcRenderer.on('mention', (_, data) => {
-      const card = document.getElementById('card')
       card.classList.remove('mentioned')
       void card.offsetWidth
       card.classList.add('mentioned')
@@ -475,6 +577,15 @@
     })
 
     ipcRenderer.on('question', (_, data) => {
+      // always log to history regardless of toggle
+      const item = document.createElement('div')
+      item.className = 'history-item'
+      item.innerHTML = `<div class="history-q">"${data.transcript}"</div><div class="history-a">${data.answer}</div>`
+      document.getElementById('history-list').prepend(item)
+      document.getElementById('history-section').classList.add('visible')
+
+      if (!questionsEnabled) return
+
       document.getElementById('transcript-text').textContent = `"${data.transcript}"`
       document.getElementById('answer-text').textContent = data.answer
       const followUpSection = document.getElementById('follow-up-section')
@@ -485,14 +596,18 @@
         followUpSection.style.display = 'none'
       }
       document.getElementById('question-section').classList.add('visible')
+    })
 
-      // prepend to history
+    ipcRenderer.on('commitment', (_, data) => {
       const item = document.createElement('div')
-      item.className = 'history-item'
-      item.innerHTML = `<div class="history-q">"${data.transcript}"</div><div class="history-a">${data.answer}</div>`
-      const list = document.getElementById('history-list')
-      list.prepend(item)
-      document.getElementById('history-section').classList.add('visible')
+      item.className = 'commitment-item'
+      item.innerHTML = `
+        <div class="commitment-text">"${data.text}"</div>
+        <audio class="commitment-audio" controls src="file://${data.clip_path}"></audio>
+        <img class="commitment-screenshot" src="data:image/jpeg;base64,${data.screenshot}" onclick="this.style.opacity = this.style.opacity === '1' ? '0.7' : '1'" />
+      `
+      document.getElementById('commitment-list').prepend(item)
+      document.getElementById('commitment-section').classList.add('visible')
     })
 
     ipcRenderer.on('dismiss', () => {

@@ -49,8 +49,9 @@ function spawnPython(env = {}) {
         } else if (event.type === 'transcript' || event.type === 'summary') {
           win.webContents.send(event.type, event)
         } else if (event.type === 'question') {
-          win.setIgnoreMouseEvents(false)
           win.webContents.send('question', event)
+        } else if (event.type === 'commitment') {
+          win.webContents.send('commitment', event)
         }
       } catch (e) {
         console.error('Failed to parse Python event:', line)
@@ -104,9 +105,8 @@ function startMeeting(payload) {
 
   // Switch to overlay mode
   const { width, height } = screen.getPrimaryDisplay().workAreaSize
-  win.setSize(420, 260)
-  win.setPosition(width - 440, height - 200)
-  win.setIgnoreMouseEvents(true, { forward: true })
+  win.setSize(840, 260)
+  win.setPosition(width - 860, height - 200)
   win.webContents.send('show-overlay')
 }
 
@@ -141,8 +141,11 @@ ipcMain.on('start-meeting', (_, payload) => {
 })
 
 ipcMain.on('dismiss', () => {
-  win.setIgnoreMouseEvents(true, { forward: true })
   win.webContents.send('dismiss')
+})
+
+ipcMain.on('set-ignore-mouse', (_, ignore) => {
+  win.setIgnoreMouseEvents(ignore, { forward: true })
 })
 
 app.on('will-quit', () => {
