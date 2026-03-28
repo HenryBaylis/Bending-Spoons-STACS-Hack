@@ -16,7 +16,9 @@ ipcRenderer.on("question", (_, data) => {
 ipcRenderer.on("dismiss", () => {
   document.getElementById("question-section").classList.remove("visible");
 });
-const api = {};
+const api = {
+  closeWindow: () => ipcRenderer.send("close-window")
+};
 if (process.contextIsolated) {
   try {
     electron.contextBridge.exposeInMainWorld("electron", preload.electronAPI);
