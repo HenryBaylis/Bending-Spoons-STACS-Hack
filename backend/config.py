@@ -18,7 +18,7 @@ AUDIO_STEP_SECONDS  = 0.8   # how far each chunk advances (2s overlap between ch
 # --- STT ---
 # faster-whisper model size: tiny, base, small, medium, large
 # smaller = faster but less accurate
-WHISPER_MODEL = "tiny"
+WHISPER_MODEL = "base"
 
 # --- Detector ---
 # minimum confidence before alerting (0.0 - 1.0, heuristic only uses 0 or 1)

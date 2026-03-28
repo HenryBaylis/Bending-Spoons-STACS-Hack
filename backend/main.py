@@ -9,12 +9,13 @@ from datetime import datetime
 import audio
 import stt
 import detector
+import detector_llm
 import answerer
 import summarizer
 import config
 
 DEBOUNCE_SECONDS = 10
-TRANSCRIPT_WINDOW = 20  # characters to show in the live feed
+TRANSCRIPT_WINDOW = 50  # characters to show in the live feed
 WORDS_PER_SUMMARY = 100
 
 
@@ -59,7 +60,8 @@ async def audio_loop(profile: dict):
             summary_accumulator.append(word)
             context = " ".join(word_buffer)
 
-            emit({"type": "transcript", "text": context[-TRANSCRIPT_WINDOW:]})
+            words_20 = " ".join(list(word_buffer)[-20:])
+            emit({"type": "transcript", "text": context[-TRANSCRIPT_WINDOW:], "words": words_20})
 
             if word_count % WORDS_PER_SUMMARY == 0:
                 block = " ".join(summary_accumulator)
@@ -73,16 +75,18 @@ async def audio_loop(profile: dict):
 
             now = time.time()
 
-            # Ping when name or team is mentioned
-            if detector.is_mentioned(context, profile["name"], profile["team"]):
-                if now - last_mention >= MENTION_DEBOUNCE:
-                    last_mention = now
-                    emit({"type": "mention", "text": context[-TRANSCRIPT_WINDOW:]})
-
-            # Start waiting for ? when question is first detected
-            if pending_question_at is None and detector.is_directed_at_me(context, profile["name"]):
-                if now - last_triggered >= DEBOUNCE_SECONDS:
-                    pending_question_at = now
+            # LLM classification — loose gate first, then classify into question/mention/none
+            if pending_question_at is None and detector.should_check_llm(
+                context, profile["name"], profile.get("team", ""), profile.get("current_projects", "")
+            ):
+                if now - last_triggered >= DEBOUNCE_SECONDS and now - last_mention >= MENTION_DEBOUNCE:
+                    label = await detector_llm.classify(context, profile["name"])
+                    if label == "question":
+                        last_triggered = now
+                        pending_question_at = now
+                    elif label == "mention":
+                        last_mention = now
+                        emit({"type": "mention", "words": words_20})
 
             # Fire if ? appears or max wait exceeded
             if pending_question_at is not None:
@@ -91,8 +95,8 @@ async def audio_loop(profile: dict):
                 if question_complete or timed_out:
                     last_triggered = now
                     pending_question_at = None
-                    answer = await answerer.generate_answer(context, summary=running_summary)
-                    emit({"type": "question", "transcript": context, "answer": answer})
+                    result = await answerer.generate_answer(context, summary=running_summary)
+                    emit({"type": "question", "transcript": context, "answer": result["answer"], "follow_up": result["follow_up"]})
 
         chunk_offset += config.AUDIO_STEP_SECONDS
 

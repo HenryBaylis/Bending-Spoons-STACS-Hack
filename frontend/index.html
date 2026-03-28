@@ -181,6 +181,21 @@
       overflow: hidden;
     }
 
+    #mention-section {
+      display: none;
+      margin-bottom: 10px;
+      border-left: 2px solid rgba(250, 204, 21, 0.5);
+      padding-left: 8px;
+    }
+
+    #mention-section.visible { display: block; }
+
+    #mention-text {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.4;
+    }
+
     #summary-section { margin-bottom: 10px; }
 
     #summary-text {
@@ -283,6 +298,11 @@
       <div id="live-text">—</div>
     </div>
 
+    <div id="mention-section">
+      <div class="label">Mentioned</div>
+      <div id="mention-text"></div>
+    </div>
+
     <div id="summary-section">
       <div class="label">Last summary</div>
       <div id="summary-text">—</div>
@@ -293,7 +313,11 @@
       <div id="transcript-text"></div>
       <div class="label" style="margin-bottom:6px">Suggested response</div>
       <div id="answer-text"></div>
-      <button class="dismiss-btn" onclick="dismiss()">Dismiss</button>
+      <div id="follow-up-section" style="display:none; margin-top:10px; border-top:1px solid rgba(255,255,255,0.06); padding-top:8px;">
+        <div class="label" style="margin-bottom:4px">Possible follow-up</div>
+        <div id="follow-up-text" style="font-size:13px; color:rgba(255,255,255,0.5); line-height:1.4; font-style:italic;"></div>
+      </div>
+      <button class="dismiss-btn" onclick="dismiss()" style="margin-top:12px;">Dismiss</button>
     </div>
   </div>
 
@@ -362,8 +386,10 @@
       document.getElementById('card').classList.remove('visible')
       // Reset overlay state
       document.getElementById('question-section').classList.remove('visible')
+      document.getElementById('mention-section').classList.remove('visible')
       document.getElementById('live-text').textContent = '—'
       document.getElementById('summary-text').textContent = '—'
+      mentionActiveUntil = 0
     })
 
     ipcRenderer.on('show-overlay', () => {
@@ -372,16 +398,30 @@
     })
 
     // ── Overlay events ──
-    ipcRenderer.on('mention', () => {
+    let mentionActiveUntil = 0
+
+    ipcRenderer.on('mention', (_, data) => {
       const card = document.getElementById('card')
       card.classList.remove('mentioned')
       void card.offsetWidth
       card.classList.add('mentioned')
       setTimeout(() => card.classList.remove('mentioned'), 1000)
+
+      mentionActiveUntil = Date.now() + 5000
+      document.getElementById('mention-text').textContent = data.words
+      document.getElementById('mention-section').classList.add('visible')
+      setTimeout(() => {
+        if (Date.now() >= mentionActiveUntil) {
+          document.getElementById('mention-section').classList.remove('visible')
+        }
+      }, 5000)
     })
 
     ipcRenderer.on('transcript', (_, data) => {
       document.getElementById('live-text').textContent = data.text
+      if (Date.now() < mentionActiveUntil) {
+        document.getElementById('mention-text').textContent = data.words
+      }
     })
 
     ipcRenderer.on('summary', (_, data) => {
@@ -391,6 +431,13 @@
     ipcRenderer.on('question', (_, data) => {
       document.getElementById('transcript-text').textContent = `"${data.transcript}"`
       document.getElementById('answer-text').textContent = data.answer
+      const followUpSection = document.getElementById('follow-up-section')
+      if (data.follow_up) {
+        document.getElementById('follow-up-text').textContent = data.follow_up
+        followUpSection.style.display = 'block'
+      } else {
+        followUpSection.style.display = 'none'
+      }
       document.getElementById('question-section').classList.add('visible')
     })
 
