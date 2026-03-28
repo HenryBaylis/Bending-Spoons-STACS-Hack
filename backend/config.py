@@ -12,7 +12,8 @@ AUDIO_DEVICE = "alsa_output.pci-0000_63_00.6.analog-stereo.monitor"  # Linux: pa
 # AUDIO_DEVICE = "BlackHole 2ch"  # macOS
 AUDIO_SAMPLE_RATE = 16000
 AUDIO_CHANNELS = 1
-AUDIO_CHUNK_SECONDS = 0.8
+AUDIO_CHUNK_SECONDS = 2.4   # window size — 3 overlapping chunks at any time
+AUDIO_STEP_SECONDS  = 0.8   # how far each chunk advances (2s overlap between chunks)
 
 # --- STT ---
 # faster-whisper model size: tiny, base, small, medium, large

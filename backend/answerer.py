@@ -19,7 +19,7 @@ _SYSTEM_PROMPT = (
 
 async def generate_answer(transcript: str, summary: str = "") -> str:
     context = f"Meeting context so far: {summary}\n\n" if summary else ""
-    prompt = f"{context}Someone just asked: {transcript}"
+    prompt = f"{context}Recent transcript (last 100 words):\n{transcript}\n\nGenerate a response to the question directed at me in the transcript above."
 
     message = await _client.messages.create(
         model="claude-haiku-4-5",
