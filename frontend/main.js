@@ -68,7 +68,9 @@ function spawnPython() {
 
 app.whenReady().then(() => {
   createWindow()
-  spawnPython()
+  win.webContents.once('did-finish-load', () => {
+    spawnPython()
+  })
 })
 
 ipcMain.on('dismiss', () => {

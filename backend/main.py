@@ -37,7 +37,9 @@ async def audio_loop(profile: dict):
     last_triggered = 0
     transcript_path = _transcript_path()
 
+    print("[audio] listening...", file=sys.stderr, flush=True)
     for chunk in audio.stream():
+        print(f"[audio] got speech segment ({len(chunk)} samples)", file=sys.stderr, flush=True)
         words = list(stt.transcribe_words(chunk))
 
         for word, _start, _end in words:
