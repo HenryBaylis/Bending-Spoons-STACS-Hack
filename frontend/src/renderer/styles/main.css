@@ -30,15 +30,6 @@ body {
   color: rgba(255, 255, 255, 0.85);
 }
 
-#question-section {
-  background: rgba(15, 15, 20, 0.25);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 14px 16px;
-  color: rgba(255, 255, 255, 0.85);
-}
-
 #card {
   background: rgba(15, 15, 20, 0.88);
   backdrop-filter: blur(12px);
@@ -47,6 +38,7 @@ body {
   padding: 14px 16px;
   width: 420px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  -webkit-app-region: no-drag;
 }
 
 .label {
@@ -152,6 +144,21 @@ button {
 button:hover {
   background: rgba(255, 255, 255, 0.14);
   color: #fff;
+}
+
+.btn-primary {
+  width: 100%;
+  background: #fff;
+  color: #0f0f14;
+  border: none;
+  font-weight: 600;
+  padding: 9px 12px;
+  margin-top: 12px;
+}
+
+.btn-primary:hover {
+  background: rgba(255, 255, 255, 0.88);
+  color: #0f0f14;
 }
 
 .actions {

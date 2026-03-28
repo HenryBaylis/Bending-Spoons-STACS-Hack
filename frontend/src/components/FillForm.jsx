@@ -37,7 +37,7 @@ export default function FillForm({onSubmit, onClose}) {
                 <input type="file" accept=".txt,.md,.pdf" onChange={handleFile} style={{ WebkitAppRegion: "no-drag", color: "rgba(255,255,255,0.6)", fontSize: 11, width: "100%" }} />
                 {contextFile && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{contextFile}</div>}
             </div>
-            <button onClick={handleSubmit}>Start</button>
+            <button className="btn-primary" onClick={handleSubmit}>Start</button>
         </div>
     )
 }
