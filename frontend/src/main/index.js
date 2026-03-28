@@ -11,7 +11,7 @@ let contextFilePath = null;
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 420,
+    width: 840,
     height: 360,
     transparent: true,
     frame: false,
@@ -31,7 +31,7 @@ function createWindow() {
 
   win.on("ready-to-show", () => {
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-    win.setPosition(width - 440, height - 300);
+    win.setPosition(width - 860, height - 300);
     win.show();
   });
 
@@ -64,7 +64,7 @@ function spawnPython(env = {}) {
       if (!line.trim()) continue;
       try {
         const event = JSON.parse(line);
-        if (event.type === "transcript" || event.type === "summary") {
+        if (event.type === "transcript" || event.type === "summary" || event.type === "input_transcript") {
           win.webContents.send(event.type, event);
         } else if (event.type === "mention") {
           win.webContents.send("mention", event);
@@ -139,7 +139,7 @@ ipcMain.on("start-meeting", (_, profile) => {
 });
 
 ipcMain.on("resize-window", (_, height) => {
-  win.setContentSize(420, height);
+  win.setContentSize(840, height);
 });
 
 ipcMain.on("dismiss", () => {

@@ -36,7 +36,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
   padding: 14px 16px;
-  width: 420px;
+  width: 840px;
   max-height: 520px;
   overflow-y: auto;
   scrollbar-width: none;
@@ -78,7 +78,20 @@ body {
 }
 
 #live-section {
+  margin-bottom: 6px;
+}
+
+#input-live-section {
   margin-bottom: 10px;
+}
+
+#input-live-text {
+  font-size: 12px;
+  color: rgba(100, 160, 255, 0.6);
+  font-family: monospace;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 #live-text {

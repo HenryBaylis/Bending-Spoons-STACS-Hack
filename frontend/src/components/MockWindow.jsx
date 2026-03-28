@@ -8,6 +8,10 @@ export default function MockWindow({ onClose, children, history = [] }) {
                 <div className="label"><span className="dot"></span>Live</div>
                 <div id="live-text">—</div>
             </div>
+            <div id="input-live-section">
+                <div className="label"><span className="dot" style={{ background: "#3b82f6" }}></span>You</div>
+                <div id="input-live-text">—</div>
+            </div>
             <div id="mention-section" style={{ display: "none", marginBottom: 10, borderLeft: "2px solid rgba(250,204,21,0.5)", paddingLeft: 8 }}>
                 <div className="label">Mentioned</div>
                 <div id="mention-text" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}></div>

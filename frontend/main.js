@@ -152,6 +152,10 @@ ipcMain.on('analyse-tactics', () => {
   if (python) python.stdin.write('analyse-tactics\n')
 })
 
+ipcMain.on('trigger-assertiveness', () => {
+  if (python) python.stdin.write('trigger-assertiveness\n')
+})
+
 ipcMain.on('set-ignore-mouse', (_, ignore) => {
   win.setIgnoreMouseEvents(ignore, { forward: true })
 })

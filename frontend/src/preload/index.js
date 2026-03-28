@@ -40,6 +40,11 @@ ipcRenderer.on("mention", (_, data) => {
   }
 });
 
+ipcRenderer.on("input_transcript", (_, data) => {
+  const el = document.getElementById("input-live-text");
+  if (el) el.textContent = data.text;
+});
+
 // ── React state callbacks ──
 const api = {
   closeWindow: () => ipcRenderer.send("close-window"),

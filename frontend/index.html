@@ -171,17 +171,18 @@
     }
 
     #live-section {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
       margin-bottom: 10px;
     }
 
-    #live-section > div { flex: 1; min-width: 0; }
+    #feature-toggles {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
 
-    .answers-toggle {
+    .feature-toggle {
       -webkit-app-region: no-drag;
-      flex-shrink: 0;
       background: none;
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 10px;
@@ -190,16 +191,15 @@
       font-weight: 600;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      padding: 2px 8px;
+      padding: 3px 10px;
       cursor: pointer;
-      margin-left: 8px;
-      margin-top: 1px;
+      transition: border-color 0.15s, color 0.15s;
     }
 
-    .answers-toggle.on {
-      border-color: rgba(34,197,94,0.4);
-      color: rgba(34,197,94,0.7);
-    }
+    #answers-toggle.on   { border-color: rgba(34,197,94,0.4);  color: rgba(34,197,94,0.8);  }
+    #assert-toggle.on    { border-color: rgba(59,130,246,0.4);  color: rgba(59,130,246,0.8); }
+    #promises-toggle.on  { border-color: rgba(250,204,21,0.4);  color: rgba(250,204,21,0.8); }
+    #negotiate-toggle.on { border-color: rgba(249,115,22,0.4);  color: rgba(249,115,22,0.8); }
 
     #live-text {
       font-size: 12px;
@@ -348,29 +348,6 @@
       line-height: 1.4;
     }
 
-    .tactic-btn {
-      -webkit-app-region: no-drag;
-      background: rgba(250,204,21,0.1);
-      border: 1px solid rgba(250,204,21,0.25);
-      border-radius: 7px;
-      color: rgba(250,204,21,0.7);
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      padding: 4px 10px;
-      cursor: pointer;
-      margin-top: 8px;
-    }
-
-    .tactic-btn:hover {
-      background: rgba(250,204,21,0.18);
-      color: rgba(250,204,21,1);
-    }
-
-    .tactic-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
 
     #commitment-section {
       display: none;
@@ -470,11 +447,15 @@
   <!-- Overlay card -->
   <div id="card">
     <div id="live-section">
-      <div>
-        <div class="label"><span class="dot"></span>Live</div>
-        <div id="live-text">—</div>
-      </div>
-      <button class="answers-toggle on" id="answers-toggle" onclick="toggleAnswers()">Answers</button>
+      <div class="label"><span class="dot"></span>Live</div>
+      <div id="live-text">—</div>
+    </div>
+
+    <div id="feature-toggles">
+      <button class="feature-toggle on" id="answers-toggle"   onclick="toggleFeature('answers')">Answers</button>
+      <button class="feature-toggle on" id="assert-toggle"    onclick="triggerAssert()">Assertiveness</button>
+      <button class="feature-toggle on" id="promises-toggle"  onclick="toggleFeature('promises')">Promises</button>
+      <button class="feature-toggle on" id="negotiate-toggle" onclick="triggerNegotiate()">Negotiate</button>
     </div>
 
     <div id="assertiveness-section">
@@ -510,7 +491,6 @@
       <div id="tactic-counter"></div>
     </div>
 
-    <button class="tactic-btn" id="tactic-btn" onclick="analyseTactics()">Analyse Tactics</button>
 
     <div id="history-section">
       <div class="label">History</div>
@@ -595,13 +575,17 @@
       document.getElementById('commitment-list').innerHTML = ''
       document.getElementById('assertiveness-section').classList.remove('visible')
       document.getElementById('tactic-section').classList.remove('visible')
-      document.getElementById('tactic-btn').disabled = false
-      document.getElementById('tactic-btn').textContent = 'Analyse Tactics'
       document.getElementById('live-text').textContent = '—'
       document.getElementById('summary-text').textContent = '—'
       mentionActiveUntil = 0
-      questionsEnabled = true
-      document.getElementById('answers-toggle').classList.add('on')
+      Object.keys(featureState).forEach(k => {
+        featureState[k] = true
+        document.getElementById(k + '-toggle').classList.add('on')
+      })
+      const assertBtn = document.getElementById('assert-toggle')
+      assertBtn.textContent = 'Assertiveness'; assertBtn.disabled = false
+      const negBtn = document.getElementById('negotiate-toggle')
+      negBtn.textContent = 'Negotiate'; negBtn.disabled = false
     })
 
     ipcRenderer.on('show-overlay', () => {
@@ -615,15 +599,30 @@
     card.addEventListener('mouseleave', () => ipcRenderer.send('set-ignore-mouse', true))
     ipcRenderer.send('set-ignore-mouse', true)
 
-    // ── Answers toggle ──
-    let questionsEnabled = true
+    // ── Feature toggles (answers + promises) ──
+    const featureState = { answers: true, promises: true }
 
-    function toggleAnswers() {
-      questionsEnabled = !questionsEnabled
-      const btn = document.getElementById('answers-toggle')
-      btn.classList.toggle('on', questionsEnabled)
-      if (!questionsEnabled) document.getElementById('question-section').classList.remove('visible')
-      ipcRenderer.send('toggle-questions', questionsEnabled)
+    function toggleFeature(name) {
+      featureState[name] = !featureState[name]
+      const on = featureState[name]
+      document.getElementById(name + '-toggle').classList.toggle('on', on)
+      if (name === 'answers' && !on) document.getElementById('question-section').classList.remove('visible')
+      ipcRenderer.send('toggle-feature', { name, enabled: on })
+    }
+
+    // ── Trigger buttons (assertiveness + negotiate) ──
+    function triggerAssert() {
+      const btn = document.getElementById('assert-toggle')
+      btn.textContent = '...'
+      btn.disabled = true
+      ipcRenderer.send('trigger-assertiveness')
+    }
+
+    function triggerNegotiate() {
+      const btn = document.getElementById('negotiate-toggle')
+      btn.textContent = '...'
+      btn.disabled = true
+      ipcRenderer.send('analyse-tactics')
     }
 
     // ── Overlay events ──
@@ -664,7 +663,7 @@
       document.getElementById('history-list').prepend(item)
       document.getElementById('history-section').classList.add('visible')
 
-      if (!questionsEnabled) return
+      if (!featureState.answers) return
 
       document.getElementById('transcript-text').textContent = `"${data.transcript}"`
       document.getElementById('answer-text').textContent = data.answer
@@ -678,23 +677,19 @@
       document.getElementById('question-section').classList.add('visible')
     })
 
-    function analyseTactics() {
-      const btn = document.getElementById('tactic-btn')
-      btn.disabled = true
-      btn.textContent = 'Analysing...'
-      ipcRenderer.send('analyse-tactics')
-    }
-
     ipcRenderer.on('assertiveness', (_, data) => {
+      const btn = document.getElementById('assert-toggle')
+      btn.textContent = 'Assertiveness'
+      btn.disabled = false
       document.getElementById('assertiveness-text').textContent = data.rebuttal
       document.getElementById('assertiveness-section').classList.add('visible')
       setTimeout(() => document.getElementById('assertiveness-section').classList.remove('visible'), 8000)
     })
 
     ipcRenderer.on('tactic', (_, data) => {
-      const btn = document.getElementById('tactic-btn')
+      const btn = document.getElementById('negotiate-toggle')
+      btn.textContent = 'Negotiate'
       btn.disabled = false
-      btn.textContent = 'Analyse Tactics'
       if (data.tactic === 'none') {
         document.getElementById('tactic-section').classList.remove('visible')
         return
@@ -706,6 +701,7 @@
 
     ipcRenderer.on('commitment', (_, data) => {
       const item = document.createElement('div')
+      if (!featureState.promises) return
       item.className = 'commitment-item'
       item.innerHTML = `
         <div class="commitment-text">"${data.text}"</div>
