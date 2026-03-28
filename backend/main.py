@@ -40,8 +40,10 @@ async def audio_loop(profile: dict):
     last_word_end = 0.0
     chunk_offset = 0.0
     confirm_before = config.AUDIO_CHUNK_SECONDS - config.AUDIO_STEP_SECONDS
-    pending_question_at = None   # time.time() when question was first detected
-    QUESTION_MAX_WAIT = 3.0      # seconds to wait for ? before firing anyway
+    pending_question_at = None
+    QUESTION_MAX_WAIT = 3.0
+    last_mention = 0
+    MENTION_DEBOUNCE = 5
 
     print("[audio] listening...", file=sys.stderr, flush=True)
     for chunk in audio.stream():
@@ -70,6 +72,12 @@ async def audio_loop(profile: dict):
                     f.write(f"[{datetime.now().strftime('%H:%M:%S')}] {running_summary}\n")
 
             now = time.time()
+
+            # Ping when name or team is mentioned
+            if detector.is_mentioned(context, profile["name"], profile["team"]):
+                if now - last_mention >= MENTION_DEBOUNCE:
+                    last_mention = now
+                    emit({"type": "mention", "text": context[-TRANSCRIPT_WINDOW:]})
 
             # Start waiting for ? when question is first detected
             if pending_question_at is None and detector.is_directed_at_me(context, profile["name"]):

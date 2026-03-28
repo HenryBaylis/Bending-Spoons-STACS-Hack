@@ -18,6 +18,14 @@ _QUESTION_PATTERNS = [
 _COMPILED = [re.compile(p, re.IGNORECASE) for p in _QUESTION_PATTERNS]
 
 
+def is_mentioned(text: str, name: str, team: str) -> bool:
+    """
+    Returns True if the user's name or team is mentioned anywhere in the text.
+    """
+    text_lower = text.lower()
+    return name.lower() in text_lower or team.lower() in text_lower
+
+
 def is_directed_at_me(text: str, name: str) -> bool:
     """
     Returns True if the text contains the user's name and matches
