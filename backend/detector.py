@@ -13,6 +13,7 @@ _QUESTION_PATTERNS = [
     r"\bright\?",
     r"\byeah\?",
     r"\bsound good\b",
+    r"\byour\b",  # implicit address — "your thoughts", "your take", "what's your..."
 ]
 
 _COMPILED = [re.compile(p, re.IGNORECASE) for p in _QUESTION_PATTERNS]
