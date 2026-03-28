@@ -37,6 +37,8 @@ body {
   border-radius: 14px;
   padding: 14px 16px;
   width: 420px;
+  max-height: 520px;
+  overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   -webkit-app-region: no-drag;
 }
@@ -92,6 +94,8 @@ body {
   color: rgba(255, 255, 255, 0.45);
   line-height: 1.4;
   font-style: italic;
+  height: 34px;
+  overflow: hidden;
 }
 
 #question-section {

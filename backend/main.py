@@ -42,7 +42,7 @@ async def audio_loop(profile: dict):
     chunk_offset = 0.0
     confirm_before = config.AUDIO_CHUNK_SECONDS - config.AUDIO_STEP_SECONDS
     pending_question_at = None
-    QUESTION_MAX_WAIT = 3.0
+    QUESTION_MAX_WAIT = 20.0
     last_mention = 0
     MENTION_DEBOUNCE = 5
 

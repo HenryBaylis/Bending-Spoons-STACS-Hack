@@ -7,7 +7,7 @@ A passive meeting assistant that listens to meeting audio, detects when someone 
 - **Python** — audio capture, STT, question detection, summarisation, AI answer generation
 - **Electron (JS)** — transparent overlay UI + setup screen, spawns Python as a child process
 - **Claude API (Haiku 4.5)** — answer generation, summarisation, and LLM-based question/mention classification
-- **faster-whisper (base, local)** — speech to text
+- **faster-whisper (tiny, local)** — speech to text
 - **parec (Linux) / sounddevice (macOS)** — system audio loopback capture
 
 ## How it runs
@@ -56,7 +56,7 @@ IPC events from Python → renderer:
 - `frontend/index.html` — setup screen + transparent overlay UI (vanilla JS, no framework)
 - `backend/main.py` — Python entry: wires audio → STT → detector → LLM classifier → answerer, emits JSON events
 - `backend/audio.py` — cross-platform audio capture (parec on Linux, sounddevice on macOS), overlapping 2.4s chunks with 0.8s step
-- `backend/stt.py` — faster-whisper base transcription with per-word timestamps, vad_filter=True
+- `backend/stt.py` — faster-whisper tiny transcription with per-word timestamps, vad_filter=True
 - `backend/detector.py` — heuristic gate: `should_check_llm(text, name, team, project)` fires on name/team/project reference OR question pattern; also `is_mentioned()` for simple name check
 - `backend/detector_llm.py` — LLM classifier: `classify(context, name)` returns `"question"`, `"mention"`, or `"none"` via Claude Haiku
 - `backend/answerer.py` — Claude Haiku API call with profile + summary + 100-word context + optional meeting doc; returns `{answer, follow_up}`
@@ -88,7 +88,7 @@ IPC events from Python → renderer:
 - Follow-up question: answerer optionally appends a follow-up on a new line starting with `Follow-up:`, parsed out and shown separately in the overlay
 - Profile written from setup screen at meeting start, not hardcoded
 - venv Python used by Electron to avoid system Python package conflicts
-- **Whisper base** chosen over tiny (~100ms slower per chunk) for better punctuation accuracy, which the `?` wait logic depends on
+- **Whisper tiny** used for speed (~247ms/chunk); punctuation accuracy is acceptable for `?` wait logic
 
 ## Data flow
 ```
@@ -96,7 +96,7 @@ parec/sounddevice → raw PCM at AUDIO_SAMPLE_RATE
     ↓
 audio.py  →  overlapping 2.4s chunks, advancing 0.8s per step
     ↓
-stt.py    →  faster-whisper base → (word, start, end) tuples
+stt.py    →  faster-whisper tiny → (word, start, end) tuples
     ↓
 main.py   →  per word (timestamp-deduplicated, confirmed only):
               - emit transcript (last 50 chars) + 20-word context to frontend
@@ -119,7 +119,7 @@ frontend  →  transcript → live caption strip (50 chars)
 ```
 
 ## Latency
-0.8s chunk step + ~380ms Whisper base + 0–3s ? wait + ~300ms LLM classify + ~1.5s Claude Haiku answer = **~3.0–6.0s** after question ends
+0.8s chunk step + ~247ms Whisper tiny + 0–3s ? wait + ~300ms LLM classify + ~1.5s Claude Haiku answer = **~3.0–6.0s** after question ends
 
 Typical case (~1s after question ends): **~4.0s**
 

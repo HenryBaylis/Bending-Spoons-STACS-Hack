@@ -8,6 +8,7 @@ export default function App() {
   const [question, setQuestion] = useState("")
   const [answer, setAnswer] = useState("")
   const [followUp, setFollowUp] = useState(null)
+  const [history, setHistory] = useState([])
   const containerRef = useRef(null)
 
   const handleClose = () => window.api?.closeWindow()
@@ -28,10 +29,11 @@ export default function App() {
       setQuestion(data.transcript)
       setAnswer(data.answer)
       setFollowUp(data.follow_up || null)
+      setHistory(h => [{ question: data.transcript, answer: data.answer }, ...h])
       setStage('expanded')
     })
     window.api?.onDismiss(() => setStage('mock'))
-    window.api?.onStopMeeting(() => setStage('form'))
+    window.api?.onStopMeeting(() => { setStage('form'); setHistory([]) })
   }, [])
 
   const handleStart = (profile) => {
@@ -45,7 +47,7 @@ export default function App() {
 
   return (
     <div ref={containerRef}>
-      <MockWindow onClose={handleClose}>
+      <MockWindow onClose={handleClose} history={history}>
         {stage === 'expanded' && (
           <ExpandedWindow
             question={question}

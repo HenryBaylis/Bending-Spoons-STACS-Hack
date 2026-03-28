@@ -1,4 +1,6 @@
-export default function MockWindow({ onClose, children }) {
+import HistoryPanel from './HistoryPanel'
+
+export default function MockWindow({ onClose, children, history = [] }) {
     return (
         <div id="card" style={{ position: "relative" }}>
             <button onClick={onClose} style={{ position: "absolute", top: 4, right: 4 }}>✕</button>
@@ -15,6 +17,7 @@ export default function MockWindow({ onClose, children }) {
                 <div id="summary-text">—</div>
             </div>
             {children}
+            <HistoryPanel history={history} />
         </div>
     )
 }
