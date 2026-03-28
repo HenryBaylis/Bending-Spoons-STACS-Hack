@@ -1,9 +1,8 @@
 import json
-import google.generativeai as genai
+import anthropic
 import config
 
-genai.configure(api_key=config.GEMINI_API_KEY)
-_model = genai.GenerativeModel("gemini-2.0-flash")
+_client = anthropic.AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
 
 with open(config.PROFILE_PATH) as f:
     _profile = json.load(f)
@@ -21,8 +20,11 @@ _SYSTEM_PROMPT = (
 async def generate_answer(transcript: str, summary: str = "") -> str:
     context = f"Meeting context so far: {summary}\n\n" if summary else ""
     prompt = f"{context}Someone just asked: {transcript}"
-    response = await _model.generate_content_async(
-        [{"role": "user", "parts": [prompt]}],
-        generation_config={"system_instruction": _SYSTEM_PROMPT},
+
+    message = await _client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=256,
+        system=_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
     )
-    return response.text.strip()
+    return message.content[0].text.strip()

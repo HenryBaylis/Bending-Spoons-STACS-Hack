@@ -1,8 +1,7 @@
-import google.generativeai as genai
+import anthropic
 import config
 
-genai.configure(api_key=config.GEMINI_API_KEY)
-_model = genai.GenerativeModel("gemini-2.0-flash")
+_client = anthropic.AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
 
 
 async def update_summary(previous_summary: str, new_transcript: str) -> str:
@@ -19,8 +18,13 @@ async def update_summary(previous_summary: str, new_transcript: str) -> str:
         )
     else:
         prompt = (
-            f"Summarize the following meeting transcript in exactly two concise sentences. "
+            "Summarize the following meeting transcript in exactly two concise sentences. "
             f"Capture the key topics and decisions only.\n\n{new_transcript}"
         )
-    response = await _model.generate_content_async(prompt)
-    return response.text.strip()
+
+    message = await _client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=128,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return message.content[0].text.strip()
