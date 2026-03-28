@@ -59,6 +59,8 @@ async def audio_loop(profile: dict):
                     f.write(block + "\n")
                 running_summary = await summarizer.update_summary(running_summary, block)
                 emit({"type": "summary", "text": running_summary})
+                with open(transcript_path.replace(".txt", "_summary.txt"), "a") as f:
+                    f.write(f"[{datetime.now().strftime('%H:%M:%S')}] {running_summary}\n")
 
             # Question detection after each word
             if detector.is_directed_at_me(context, profile["name"]):
