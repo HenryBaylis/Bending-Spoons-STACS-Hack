@@ -7,7 +7,7 @@ A passive meeting assistant that listens to audio, detects when someone asks you
 - Captures system audio via loopback (or mic)
 - Runs webrtcvad to detect when speech ends, then fires Whisper for transcription
 - Detects questions directed at you by name using heuristic patterns
-- Calls Gemini to generate a suggested response personalised to your profile
+- Calls Claude to generate a suggested response personalised to your profile
 - Keeps a rolling 2-sentence meeting summary so the LLM has full context
 - Displays everything in a transparent always-on-top overlay
 
@@ -17,7 +17,7 @@ A passive meeting assistant that listens to audio, detects when someone asks you
 
 - Python — VAD, STT, detection, summarisation, answer generation
 - Electron — transparent overlay UI
-- Gemini API (free tier) — answers + summarisation
+- Claude API (free tier) — answers + summarisation
 - faster-whisper (tiny, local) — speech to text
 - webrtcvad — speech end detection
 
@@ -31,7 +31,7 @@ This creates the venv, installs Python deps, patches webrtcvad for Python 3.12+,
 
 **2. Set your API key**
 ```bash
-export GEMINI_API_KEY=your_key_here
+export ANTHROPIC_API_KEY=your_key_here
 ```
 
 **3. Edit your profile**
@@ -70,7 +70,7 @@ backend/
   audio.py      VAD + audio capture
   stt.py        Whisper transcription
   detector.py   Question detection
-  answerer.py   Gemini answer generation
+  answerer.py   Claude answer generation
   summarizer.py Rolling meeting summary
   vision.py     Optional screen capture
   config.py     Settings

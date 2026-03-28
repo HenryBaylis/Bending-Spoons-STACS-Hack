@@ -3,7 +3,7 @@ import os
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --- API keys ---
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
 # --- Audio ---
 # Set to None to auto-detect, or set to the name of your loopback device.
