@@ -35,3 +35,20 @@ def is_directed_at_me(text: str, name: str) -> bool:
     if not name_mentioned:
         return False
     return any(p.search(text) for p in _COMPILED)
+
+
+def should_check_llm(text: str, name: str, team: str, project: str) -> bool:
+    """
+    Loose gate before the LLM classifier.
+    Fires if any personal reference (name/team/project) is present
+    OR if a question pattern is matched — either alone is sufficient.
+    The LLM then decides whether it actually requires a response.
+    """
+    text_lower = text.lower()
+    has_reference = (
+        name.lower() in text_lower
+        or (team and team.lower() in text_lower)
+        or (project and project.lower() in text_lower)
+    )
+    has_question = any(p.search(text) for p in _COMPILED)
+    return has_reference or has_question

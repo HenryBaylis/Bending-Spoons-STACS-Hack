@@ -1,16 +1,20 @@
 """
 Simulates a realistic meeting transcript through the full pipeline.
-Tests detection, question waiting logic, and Claude answer quality.
+Tests the LLM classifier (question / mention / none) and answer quality.
 Run: python test_meeting.py
 """
 import asyncio
 import time
 from collections import deque
 import detector
+import detector_llm
 import answerer
 
 NAME = "Henry"
+TEAM = ""
+PROJECT = ""
 DEBOUNCE_SECONDS = 10
+MENTION_DEBOUNCE = 5
 QUESTION_MAX_WAIT = 3.0
 
 # Simulated meeting — words spoken at 0.15s per word (natural speech rate)
@@ -54,7 +58,6 @@ def word_timing(script, words_per_second=4.5):
         line = line.strip()
         if not line:
             continue
-        # Remove speaker label (e.g. "Alice: ")
         if ':' in line:
             line = line.split(':', 1)[1].strip()
         for word in line.split():
@@ -66,9 +69,11 @@ async def run_meeting():
     words = word_timing(MEETING_SCRIPT)
     word_buffer = deque(maxlen=100)
     last_triggered = -DEBOUNCE_SECONDS
+    last_mention = -MENTION_DEBOUNCE
     pending_question_at = None
     t = 0.0
-    fire_count = 0
+    question_count = 0
+    mention_count = 0
 
     print(f"Running meeting simulation ({len(words)} words)...\n")
     print("=" * 60)
@@ -78,27 +83,36 @@ async def run_meeting():
         word_buffer.append(word)
         context = " ".join(word_buffer)
 
-        if pending_question_at is None and detector.is_directed_at_me(context, NAME):
-            if t - last_triggered >= DEBOUNCE_SECONDS:
-                pending_question_at = t
-                print(f"\n[{t:.1f}s] Question detected, waiting for ?...")
+        if pending_question_at is None and detector.should_check_llm(context, NAME, TEAM, PROJECT):
+            if t - last_triggered >= DEBOUNCE_SECONDS and t - last_mention >= MENTION_DEBOUNCE:
+                label = await detector_llm.classify(context, NAME)
+                if label == "question":
+                    last_triggered = t
+                    pending_question_at = t
+                    print(f"\n[{t:.1f}s] LLM: question detected, waiting for ?...")
+                elif label == "mention":
+                    last_mention = t
+                    mention_count += 1
+                    print(f"\n[{t:.1f}s] LLM: mention ({mention_count}) — \"{' '.join(list(word_buffer)[-20:])[:80]}\"")
 
         if pending_question_at is not None:
             question_complete = "?" in word
             timed_out = (t - pending_question_at) >= QUESTION_MAX_WAIT
             if question_complete or timed_out:
                 reason = "? found" if question_complete else "timeout"
-                last_triggered = t
                 pending_question_at = None
-                fire_count += 1
+                question_count += 1
                 print(f"[{t:.1f}s] Firing ({reason})")
-                print(f"  Question: \"{context}\"")
+                print(f"  Context: \"{context[-120:]}\"")
                 start = time.time()
-                ans = await answerer.generate_answer(context)
+                result = await answerer.generate_answer(context)
                 elapsed = time.time() - start
-                print(f"  Claude ({elapsed:.2f}s): {ans}\n")
+                print(f"  Claude ({elapsed:.2f}s): {result['answer']}")
+                if result["follow_up"]:
+                    print(f"  Follow-up: {result['follow_up']}")
+                print()
                 print("-" * 60)
 
-    print(f"\nMeeting ended. Total questions answered: {fire_count}")
+    print(f"\nMeeting ended. Questions answered: {question_count}  Mentions: {mention_count}")
 
 asyncio.run(run_meeting())

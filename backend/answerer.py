@@ -14,7 +14,13 @@ _SYSTEM_PROMPT = (
     "When asked a question in a meeting, suggest a concise, professional response in first "
     "person as if you are them. Keep it to 2-3 sentences. "
     "Always provide an answer — never ask for clarification or say the question is incomplete. "
-    "Speech transcripts may lack punctuation; treat them as complete questions."
+    "Speech transcripts may lack punctuation; treat them as complete questions.\n\n"
+    "After your answer, you may optionally add a follow-up question directed at a specific "
+    "meeting participant if it would genuinely advance the discussion (e.g. to fill a clear "
+    "gap or explore something important that was not addressed). "
+    "Be very conservative — only include a follow-up in roughly 1 in 5 cases. "
+    "If you include one, put it on a new line starting exactly with 'Follow-up:'. "
+    "Most responses should have no follow-up."
 ).format(**_profile)
 
 # Load optional meeting context file
@@ -31,7 +37,7 @@ if _context_path and os.path.exists(_context_path):
             _context_document = base64.standard_b64encode(f.read()).decode("utf-8")
 
 
-async def generate_answer(transcript: str, summary: str = "") -> str:
+async def generate_answer(transcript: str, summary: str = "") -> dict:
     context = f"Meeting context so far: {summary}\n\n" if summary else ""
     prompt = f"{context}A colleague just asked you: \"{transcript}\"\n\nReply in 2-3 sentences."
 
@@ -45,8 +51,13 @@ async def generate_answer(transcript: str, summary: str = "") -> str:
 
     message = await _client.messages.create(
         model="claude-haiku-4-5",
-        max_tokens=256,
+        max_tokens=300,
         system=_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": content}],
     )
-    return message.content[0].text.strip()
+    raw = message.content[0].text.strip()
+
+    if "\nFollow-up:" in raw:
+        answer, follow_up = raw.split("\nFollow-up:", 1)
+        return {"answer": answer.strip(), "follow_up": follow_up.strip()}
+    return {"answer": raw, "follow_up": None}
