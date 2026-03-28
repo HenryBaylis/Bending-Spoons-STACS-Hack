@@ -14,6 +14,7 @@ import detector_llm
 import answerer
 import summarizer
 import commitment
+import negotiation
 import vision
 import config
 
@@ -33,8 +34,7 @@ def _transcript_path() -> str:
     return os.path.join(os.path.dirname(__file__), "transcripts", filename)
 
 
-async def audio_loop(profile: dict, raw_buffer: deque):
-    word_buffer = deque(maxlen=100)
+async def audio_loop(profile: dict, raw_buffer: deque, word_buffer: deque):
     word_count = 0
     summary_accumulator = []
     running_summary = ""
@@ -159,20 +159,35 @@ def _raw_buffer_thread(raw_buffer: deque, stop_event: threading.Event):
         raw_buffer.append(step)
 
 
+async def stdin_loop(word_buffer: deque):
+    """Reads commands from Electron via stdin and acts on them."""
+    while True:
+        line = await asyncio.to_thread(sys.stdin.readline)
+        if not line:
+            break
+        cmd = line.strip()
+        if cmd == "analyse-tactics":
+            context = " ".join(list(word_buffer))
+            result = await negotiation.analyse(context)
+            emit({"type": "tactic", "tactic": result["tactic"], "counter": result["counter"]})
+
+
 async def main():
     with open(config.PROFILE_PATH) as f:
         profile = json.load(f)
 
     PROMISE_BUFFER_SECONDS = 15
     raw_buffer = deque(maxlen=int(PROMISE_BUFFER_SECONDS / config.AUDIO_STEP_SECONDS) + 1)
+    word_buffer = deque(maxlen=100)
     stop_event = threading.Event()
     t = threading.Thread(target=_raw_buffer_thread, args=(raw_buffer, stop_event), daemon=True)
     t.start()
 
     try:
         await asyncio.gather(
-            audio_loop(profile, raw_buffer),
+            audio_loop(profile, raw_buffer, word_buffer),
             asyncio.to_thread(mic_loop),
+            stdin_loop(word_buffer),
         )
     finally:
         stop_event.set()

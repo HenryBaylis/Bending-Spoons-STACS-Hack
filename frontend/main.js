@@ -52,6 +52,8 @@ function spawnPython(env = {}) {
           win.webContents.send('question', event)
         } else if (event.type === 'commitment') {
           win.webContents.send('commitment', event)
+        } else if (event.type === 'tactic') {
+          win.webContents.send('tactic', event)
         }
       } catch (e) {
         console.error('Failed to parse Python event:', line)
@@ -142,6 +144,10 @@ ipcMain.on('start-meeting', (_, payload) => {
 
 ipcMain.on('dismiss', () => {
   win.webContents.send('dismiss')
+})
+
+ipcMain.on('analyse-tactics', () => {
+  if (python) python.stdin.write('analyse-tactics\n')
 })
 
 ipcMain.on('set-ignore-mouse', (_, ignore) => {

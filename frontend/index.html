@@ -309,6 +309,53 @@
       line-height: 1.4;
     }
 
+    #tactic-section {
+      display: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 8px;
+      margin-top: 2px;
+      animation: slideIn 0.2s ease;
+    }
+
+    #tactic-section.visible { display: block; }
+
+    #tactic-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(250,204,21,0.9);
+      margin-bottom: 5px;
+    }
+
+    #tactic-counter {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.4;
+    }
+
+    .tactic-btn {
+      -webkit-app-region: no-drag;
+      background: rgba(250,204,21,0.1);
+      border: 1px solid rgba(250,204,21,0.25);
+      border-radius: 7px;
+      color: rgba(250,204,21,0.7);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 4px 10px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .tactic-btn:hover {
+      background: rgba(250,204,21,0.18);
+      color: rgba(250,204,21,1);
+    }
+
+    .tactic-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
     #commitment-section {
       display: none;
       border-top: 1px solid rgba(255,255,255,0.08);
@@ -436,6 +483,14 @@
       <button class="dismiss-btn" onclick="dismiss()" style="margin-top:12px;">Dismiss</button>
     </div>
 
+    <div id="tactic-section">
+      <div class="label">Negotiation Tactic</div>
+      <div id="tactic-name"></div>
+      <div id="tactic-counter"></div>
+    </div>
+
+    <button class="tactic-btn" id="tactic-btn" onclick="analyseTactics()">Analyse Tactics</button>
+
     <div id="history-section">
       <div class="label">History</div>
       <div id="history-list"></div>
@@ -517,6 +572,9 @@
       document.getElementById('history-list').innerHTML = ''
       document.getElementById('commitment-section').classList.remove('visible')
       document.getElementById('commitment-list').innerHTML = ''
+      document.getElementById('tactic-section').classList.remove('visible')
+      document.getElementById('tactic-btn').disabled = false
+      document.getElementById('tactic-btn').textContent = 'Analyse Tactics'
       document.getElementById('live-text').textContent = '—'
       document.getElementById('summary-text').textContent = '—'
       mentionActiveUntil = 0
@@ -596,6 +654,26 @@
         followUpSection.style.display = 'none'
       }
       document.getElementById('question-section').classList.add('visible')
+    })
+
+    function analyseTactics() {
+      const btn = document.getElementById('tactic-btn')
+      btn.disabled = true
+      btn.textContent = 'Analysing...'
+      ipcRenderer.send('analyse-tactics')
+    }
+
+    ipcRenderer.on('tactic', (_, data) => {
+      const btn = document.getElementById('tactic-btn')
+      btn.disabled = false
+      btn.textContent = 'Analyse Tactics'
+      if (data.tactic === 'none') {
+        document.getElementById('tactic-section').classList.remove('visible')
+        return
+      }
+      document.getElementById('tactic-name').textContent = data.tactic
+      document.getElementById('tactic-counter').textContent = data.counter
+      document.getElementById('tactic-section').classList.add('visible')
     })
 
     ipcRenderer.on('commitment', (_, data) => {
