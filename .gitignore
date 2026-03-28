@@ -3,5 +3,6 @@ __pycache__/
 *.pyc
 .env
 backend/audio_files/*
+backend/transcripts/
 !backend/audio_files/.gitkeep
 backend/.venv/
