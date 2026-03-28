@@ -23,6 +23,3 @@ DETECTION_THRESHOLD = 0.8
 # --- Profile ---
 PROFILE_PATH = "profile.json"
 
-# --- WebSocket bridge (Python → Electron) ---
-WS_HOST = "localhost"
-WS_PORT = 8765

@@ -1,7 +1,6 @@
 sounddevice
 numpy
 faster-whisper
-websockets
 google-generativeai
 mss
 Pillow
