@@ -130,36 +130,30 @@ async def generate_answer_with_vision(transcript: str, screenshot_b64: str) -> s
 
 ---
 
-## 6. `main.py` — Entry point + WebSocket server
+## 6. `main.py` — Entry point
 
-Wire everything together and expose a WebSocket server that Electron connects to.
+Wire everything together and emit events to Electron over stdout.
 
 **What it needs to do:**
-- Start the WebSocket server on `localhost:8765`
 - Start the audio stream
-- For each audio chunk: transcribe → check detector → if triggered: generate answer → send event to Electron
-- Handle WebSocket connections from Electron
+- For each audio chunk: transcribe → check detector → if triggered: generate answer → print JSON event to stdout
 
-**Event format sent to Electron:**
+**Event format printed to stdout (one JSON object per line):**
 ```json
-{
-  "type": "question",
-  "transcript": "Henry, what is the status of the auth migration?",
-  "answer": "We're about 70% through..."
-}
+{"type": "question", "transcript": "Henry, what is the status of the auth migration?", "answer": "We're about 70% through..."}
 ```
 
 **Key details:**
-- Use `asyncio` + `websockets` package
-- Audio capture and WebSocket server run concurrently (asyncio tasks)
+- Use `asyncio`
 - Rolling buffer: keep last 5 transcript chunks, join them before running detector
 - Debounce: once a question is detected, don't trigger again for 10 seconds (avoid repeated alerts for the same question)
+- `sys.stdout.flush()` after every write so Electron receives it immediately
 
 **Rough structure:**
 ```python
-async def main():
-    async with websockets.serve(handler, "localhost", 8765):
-        await audio_loop()
+def emit(event):
+    sys.stdout.write(json.dumps(event) + "\n")
+    sys.stdout.flush()
 
 async def audio_loop():
     buffer = deque(maxlen=5)
@@ -170,11 +164,7 @@ async def audio_loop():
             context = " ".join(buffer)
             if detector.is_directed_at_me(context, profile["name"]):
                 answer = await answerer.generate_answer(context)
-                await ws.send(json.dumps({
-                    "type": "question",
-                    "transcript": context,
-                    "answer": answer
-                }))
+                emit({"type": "question", "transcript": context, "answer": answer})
 ```
 
 ---
@@ -185,17 +175,17 @@ The demo version needs replacing with the real app.
 
 **What it needs to do:**
 - Create the transparent, frameless, always-on-top overlay window
-- Spawn `main.py` as a child process on app start
-- Connect to the Python WebSocket server (`ws://localhost:8765`)
+- Spawn `backend/main.py` as a child process on app start
+- Read newline-delimited JSON from the child process's stdout
 - Forward incoming events to the renderer via `ipcMain`/`ipcRenderer`
 - Kill the Python process when the app quits
 
 **Key details:**
-- Use `child_process.spawn('python', ['main.py'])` — log stdout/stderr for debugging
-- Wait a moment before connecting to WebSocket to give Python time to start
+- Use `child_process.spawn('python', ['../backend/main.py'])` — log stderr for debugging
+- No WebSocket needed — stdout is the bridge
 - Window settings: `transparent: true`, `frame: false`, `alwaysOnTop: true`, `skipTaskbar: true`
 - Position bottom-right of screen
-- `setIgnoreMouseEvents(true)` when idle so it doesn't block clicks on other windows, `false` when a card is showing
+- `setIgnoreMouseEvents(true, { forward: true })` when idle so it doesn't block clicks, `false` when a card is showing
 
 ---
 
@@ -228,7 +218,6 @@ Replace the placeholder content with real information before use. The more detai
 sounddevice
 numpy
 faster-whisper
-websockets
 google-generativeai
 mss
 Pillow
