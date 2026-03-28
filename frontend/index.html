@@ -309,6 +309,22 @@
       line-height: 1.4;
     }
 
+    #assertiveness-section {
+      display: none;
+      border-left: 2px solid rgba(239,68,68,0.5);
+      padding-left: 8px;
+      margin-bottom: 10px;
+      animation: slideIn 0.2s ease;
+    }
+
+    #assertiveness-section.visible { display: block; }
+
+    #assertiveness-text {
+      font-size: 13px;
+      color: rgba(255,255,255,0.8);
+      line-height: 1.4;
+    }
+
     #tactic-section {
       display: none;
       border-top: 1px solid rgba(255,255,255,0.08);
@@ -461,6 +477,11 @@
       <button class="answers-toggle on" id="answers-toggle" onclick="toggleAnswers()">Answers</button>
     </div>
 
+    <div id="assertiveness-section">
+      <div class="label">Hold your ground</div>
+      <div id="assertiveness-text"></div>
+    </div>
+
     <div id="mention-section">
       <div class="label">Mentioned</div>
       <div id="mention-text"></div>
@@ -572,6 +593,7 @@
       document.getElementById('history-list').innerHTML = ''
       document.getElementById('commitment-section').classList.remove('visible')
       document.getElementById('commitment-list').innerHTML = ''
+      document.getElementById('assertiveness-section').classList.remove('visible')
       document.getElementById('tactic-section').classList.remove('visible')
       document.getElementById('tactic-btn').disabled = false
       document.getElementById('tactic-btn').textContent = 'Analyse Tactics'
@@ -662,6 +684,12 @@
       btn.textContent = 'Analysing...'
       ipcRenderer.send('analyse-tactics')
     }
+
+    ipcRenderer.on('assertiveness', (_, data) => {
+      document.getElementById('assertiveness-text').textContent = data.rebuttal
+      document.getElementById('assertiveness-section').classList.add('visible')
+      setTimeout(() => document.getElementById('assertiveness-section').classList.remove('visible'), 8000)
+    })
 
     ipcRenderer.on('tactic', (_, data) => {
       const btn = document.getElementById('tactic-btn')

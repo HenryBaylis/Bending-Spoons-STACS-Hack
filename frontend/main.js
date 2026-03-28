@@ -54,6 +54,8 @@ function spawnPython(env = {}) {
           win.webContents.send('commitment', event)
         } else if (event.type === 'tactic') {
           win.webContents.send('tactic', event)
+        } else if (event.type === 'assertiveness') {
+          win.webContents.send('assertiveness', event)
         }
       } catch (e) {
         console.error('Failed to parse Python event:', line)

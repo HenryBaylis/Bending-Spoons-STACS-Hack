@@ -15,6 +15,7 @@ import answerer
 import summarizer
 import commitment
 import negotiation
+import assertiveness
 import vision
 import config
 
@@ -34,7 +35,7 @@ def _transcript_path() -> str:
     return os.path.join(os.path.dirname(__file__), "transcripts", filename)
 
 
-async def audio_loop(profile: dict, raw_buffer: deque, word_buffer: deque):
+async def audio_loop(profile: dict, raw_buffer: deque, word_buffer: deque, mic_word_buffer: deque):
     word_count = 0
     summary_accumulator = []
     running_summary = ""
@@ -48,6 +49,10 @@ async def audio_loop(profile: dict, raw_buffer: deque, word_buffer: deque):
     QUESTION_MAX_WAIT = 20.0
     last_mention = 0
     MENTION_DEBOUNCE = 5
+
+    # ── Assertiveness helper ──
+    last_assertiveness = 0
+    ASSERTIVENESS_DEBOUNCE = 10
 
     # ── Promise checker ──
     pending_promise_at = None
@@ -126,15 +131,23 @@ async def audio_loop(profile: dict, raw_buffer: deque, word_buffer: deque):
                     promise_words = []
                     emit({"type": "commitment", "text": commitment_text, "clip_path": clip_path, "screenshot": screenshot})
 
+            # ── Assertiveness helper ──
+            if assertiveness.is_dismissal(context) and now - last_assertiveness >= ASSERTIVENESS_DEBOUNCE:
+                if mic_word_buffer:
+                    last_assertiveness = now
+                    user_context = " ".join(list(mic_word_buffer)[-30:])
+                    rebuttal = await assertiveness.generate_rebuttal(user_context, context[-200:])
+                    emit({"type": "assertiveness", "rebuttal": rebuttal})
+
         chunk_offset += config.AUDIO_STEP_SECONDS
 
 
-def mic_loop():
+def mic_loop(mic_word_buffer: deque):
     """Captures mic audio, transcribes, and emits input_transcript events."""
     last_word_end = 0.0
     chunk_offset = 0.0
     confirm_before = config.AUDIO_CHUNK_SECONDS - config.AUDIO_STEP_SECONDS
-    word_buffer = deque(maxlen=100)
+    word_buffer = mic_word_buffer
 
     print("[mic] listening...", file=sys.stderr, flush=True)
     for chunk in audio.stream_mic():
@@ -179,14 +192,15 @@ async def main():
     PROMISE_BUFFER_SECONDS = 15
     raw_buffer = deque(maxlen=int(PROMISE_BUFFER_SECONDS / config.AUDIO_STEP_SECONDS) + 1)
     word_buffer = deque(maxlen=100)
+    mic_word_buffer = deque(maxlen=100)
     stop_event = threading.Event()
     t = threading.Thread(target=_raw_buffer_thread, args=(raw_buffer, stop_event), daemon=True)
     t.start()
 
     try:
         await asyncio.gather(
-            audio_loop(profile, raw_buffer, word_buffer),
-            asyncio.to_thread(mic_loop),
+            audio_loop(profile, raw_buffer, word_buffer, mic_word_buffer),
+            asyncio.to_thread(mic_loop, mic_word_buffer),
             stdin_loop(word_buffer),
         )
     finally:
