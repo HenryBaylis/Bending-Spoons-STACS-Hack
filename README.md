@@ -25,10 +25,9 @@ A passive meeting assistant that listens to audio, detects when someone asks you
 
 **1. Install dependencies**
 ```bash
-npm install
-python -m venv backend/.venv
-backend/.venv/bin/pip install -r backend/requirements.txt
+./setup.sh
 ```
+This creates the venv, installs Python deps, patches webrtcvad for Python 3.12+, and runs `npm install`.
 
 **2. Set your API key**
 ```bash
