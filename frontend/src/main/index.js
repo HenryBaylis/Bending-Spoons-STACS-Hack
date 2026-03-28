@@ -12,7 +12,7 @@ let contextFilePath = null;
 function createWindow() {
   win = new BrowserWindow({
     width: 420,
-    height: 260,
+    height: 360,
     transparent: true,
     frame: false,
     alwaysOnTop: true,

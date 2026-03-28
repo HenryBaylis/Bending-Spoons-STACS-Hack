@@ -7,10 +7,11 @@ const utils = require("@electron-toolkit/utils");
 const icon = path.join(__dirname, "../../resources/icon.png");
 let win;
 let python;
+let contextFilePath = null;
 function createWindow() {
   win = new electron.BrowserWindow({
     width: 420,
-    height: 260,
+    height: 360,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -41,11 +42,12 @@ function createWindow() {
     win.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
 }
-function spawnPython() {
+function spawnPython(env = {}) {
   const venvPython = path.join(__dirname, "../../../backend/.venv/bin/python");
   const pythonBin = fs.existsSync(venvPython) ? venvPython : "python";
   python = child_process.spawn(pythonBin, [path.join(__dirname, "../../../backend/main.py")], {
-    cwd: path.join(__dirname, "../../../backend")
+    cwd: path.join(__dirname, "../../../backend"),
+    env: { ...process.env, ...env }
   });
   let buffer = "";
   python.stdout.on("data", (data) => {
@@ -58,6 +60,8 @@ function spawnPython() {
         const event = JSON.parse(line);
         if (event.type === "transcript" || event.type === "summary") {
           win.webContents.send(event.type, event);
+        } else if (event.type === "mention") {
+          win.webContents.send("mention", event);
         } else if (event.type === "question") {
           win.setIgnoreMouseEvents(false);
           win.webContents.send("question", event);
@@ -80,6 +84,18 @@ electron.app.whenReady().then(() => {
     utils.optimizer.watchWindowShortcuts(window);
   });
   createWindow();
+  electron.globalShortcut.register("CommandOrControl+Shift+M", () => {
+    if (python) {
+      python.kill();
+      python = null;
+    }
+    if (contextFilePath && fs.existsSync(contextFilePath)) {
+      fs.unlinkSync(contextFilePath);
+      contextFilePath = null;
+    }
+    win.setIgnoreMouseEvents(false);
+    win.webContents.send("stop-meeting");
+  });
   electron.app.on("activate", function() {
     if (electron.BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -89,10 +105,21 @@ electron.ipcMain.on("start-meeting", (_, profile) => {
   fs.writeFileSync(profilePath, JSON.stringify({
     name: profile.name,
     job_title: profile.role,
-    context_file: profile.contextFile || null
+    company: "",
+    team: "",
+    responsibilities: "",
+    current_projects: "",
+    extra_context: ""
   }, null, 2));
+  const env = {};
+  if (profile.contextFile) {
+    const ext = path.extname(profile.contextFile).toLowerCase();
+    env.MEETING_CONTEXT_PATH = profile.contextFile;
+    env.MEETING_CONTEXT_TYPE = ext === ".pdf" ? "pdf" : "text";
+    contextFilePath = profile.contextFile;
+  }
   win.setIgnoreMouseEvents(true, { forward: true });
-  spawnPython();
+  spawnPython(env);
 });
 electron.ipcMain.on("resize-window", (_, height) => {
   win.setContentSize(420, height);
@@ -104,6 +131,9 @@ electron.ipcMain.on("dismiss", () => {
 electron.ipcMain.on("close-window", () => {
   if (python) python.kill();
   electron.app.quit();
+});
+electron.app.on("will-quit", () => {
+  electron.globalShortcut.unregisterAll();
 });
 electron.app.on("window-all-closed", () => {
   if (python) python.kill();

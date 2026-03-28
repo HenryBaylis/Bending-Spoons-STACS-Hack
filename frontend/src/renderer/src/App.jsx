@@ -13,6 +13,7 @@ export default function App() {
   const handleClose = () => window.api?.closeWindow()
 
   useEffect(() => {
+    if (stage === 'form') return
     const el = containerRef.current
     if (!el) return
     const observer = new ResizeObserver(() => {
