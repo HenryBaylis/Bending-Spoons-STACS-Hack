@@ -7,14 +7,15 @@ let python;
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 900,
-    height: 600,
-    transparent: true,
+    width: 520,
+    height: 220,
+    backgroundColor: '#0f0f14',
     frame: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
       nodeIntegration: true,
       contextIsolation: false,
     },
@@ -26,7 +27,7 @@ function createWindow() {
 
   const { screen } = require("electron");
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-  win.setPosition(width - 440, height - 200);
+  win.setPosition(width - 440, height - 620);
   //win.webContents.openDevTools();
 }
 
@@ -78,6 +79,16 @@ app.whenReady().then(() => {
 ipcMain.on("dismiss", () => {
   win.setIgnoreMouseEvents(true, { forward: true });
   win.webContents.send("dismiss");
+});
+
+ipcMain.on("resize-window", (_, height) => {
+  const [w] = win.getSize();
+  win.setSize(w, Math.max(Math.ceil(height) + 2, 100));
+});
+
+ipcMain.on("close-window", () => {
+  if (python) python.kill();
+  win.close();
 });
 
 app.on("window-all-closed", () => {

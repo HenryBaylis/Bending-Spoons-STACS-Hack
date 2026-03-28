@@ -4,7 +4,7 @@
   "description": "",
   "main": "frontend/main.js",
   "scripts": {
-    "build": "babel frontend/src --out-dir dist --extensions \".js,.jsx\"",
+    "build": "babel frontend/src --out-dir frontend/dist --extensions \".js,.jsx\"",
     "start": "npm run build && electron ."
   },
   "repository": {
