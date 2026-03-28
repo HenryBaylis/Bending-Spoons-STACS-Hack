@@ -1,13 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import FillForm from '../../components/FillForm'
+import MockWindow from '../../components/MockWindow'
 import ExpandedWindow from '../../components/ExpandedWindow'
 
 export default function App() {
   const [stage, setStage] = useState('form') // 'form' | 'mock' | 'expanded'
   const [question, setQuestion] = useState("Can you tell us about yourself?")
   const [answer, setAnswer] = useState("I am a software engineer with experience in React and Electron.")
+  const containerRef = useRef(null)
 
   const handleClose = () => window.close()
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver(() => {
+      window.api?.resizeWindow(el.offsetHeight)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [stage])
 
   useEffect(() => {
     if (stage === 'mock') {
@@ -16,21 +28,26 @@ export default function App() {
     }
   }, [stage])
 
+  const handleStart = (profile) => {
+    window.api.startMeeting(profile)
+    setStage('mock')
+  }
+
   if (stage === 'form') {
-    return <FillForm onSubmit={() => setStage('mock')} onClose={handleClose} />
+    return <div ref={containerRef}><FillForm onSubmit={handleStart} onClose={handleClose} /></div>
   }
 
   return (
-    <div id="question-section" className="visible" style={{ position: "relative", minHeight: 150, minWidth: 420 }}>
-      <button onClick={handleClose} style={{ position: "absolute", top: 4, right: 4 }}>✕</button>
-      {stage === 'expanded' && (
-        <ExpandedWindow
-          question={question}
-          answer={answer}
-          onDismiss={() => setStage('mock')}
-          onClose={handleClose}
-        />
-      )}
+    <div ref={containerRef}>
+      <MockWindow onClose={handleClose}>
+        {stage === 'expanded' && (
+          <ExpandedWindow
+            question={question}
+            answer={answer}
+            onDismiss={() => setStage('mock')}
+          />
+        )}
+      </MockWindow>
     </div>
   )
 }

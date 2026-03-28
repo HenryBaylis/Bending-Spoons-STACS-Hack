@@ -17,7 +17,9 @@ ipcRenderer.on("dismiss", () => {
   document.getElementById("question-section").classList.remove("visible");
 });
 const api = {
-  closeWindow: () => ipcRenderer.send("close-window")
+  closeWindow: () => ipcRenderer.send("close-window"),
+  startMeeting: (profile) => ipcRenderer.send("start-meeting", profile),
+  resizeWindow: (height) => ipcRenderer.send("resize-window", height)
 };
 if (process.contextIsolated) {
   try {

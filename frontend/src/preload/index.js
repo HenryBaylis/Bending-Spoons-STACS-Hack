@@ -29,7 +29,9 @@ function dismiss() {
 
 // Custom APIs for renderer
 const api = {
-  closeWindow: () => ipcRenderer.send("close-window")
+  closeWindow: () => ipcRenderer.send("close-window"),
+  startMeeting: (profile) => ipcRenderer.send("start-meeting", profile),
+  resizeWindow: (height) => ipcRenderer.send("resize-window", height),
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to
