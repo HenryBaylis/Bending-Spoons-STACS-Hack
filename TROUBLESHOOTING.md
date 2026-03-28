@@ -73,12 +73,12 @@ backend/.venv/bin/pip install -r backend/requirements.txt
 
 ---
 
-## Gemini API errors
+## Claude API errors
 
 Make sure your API key is set:
 
 ```bash
-export GEMINI_API_KEY=your_key_here
+export ANTHROPIC_API_KEY=your_key_here
 ```
 
 Add to `~/.zshrc` or `~/.bashrc` to make it permanent.
