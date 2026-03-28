@@ -39,8 +39,13 @@ body {
   width: 420px;
   max-height: 520px;
   overflow-y: auto;
+  scrollbar-width: none;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   -webkit-app-region: no-drag;
+}
+
+#card::-webkit-scrollbar {
+  display: none;
 }
 
 .label {

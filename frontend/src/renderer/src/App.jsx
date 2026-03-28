@@ -17,11 +17,13 @@ export default function App() {
     if (stage === 'form') return
     const el = containerRef.current
     if (!el) return
+    let timer = null
     const observer = new ResizeObserver(() => {
-      window.api?.resizeWindow(el.offsetHeight)
+      clearTimeout(timer)
+      timer = setTimeout(() => window.api?.resizeWindow(el.offsetHeight), 50)
     })
     observer.observe(el)
-    return () => observer.disconnect()
+    return () => { observer.disconnect(); clearTimeout(timer) }
   }, [stage])
 
   useEffect(() => {

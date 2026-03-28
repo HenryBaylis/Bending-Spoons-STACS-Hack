@@ -45,7 +45,7 @@ function spawnPython(env = {}) {
       try {
         const event = JSON.parse(line)
         if (event.type === 'mention') {
-          win.webContents.send('mention')
+          win.webContents.send('mention', event)
         } else if (event.type === 'transcript' || event.type === 'summary') {
           win.webContents.send(event.type, event)
         } else if (event.type === 'question') {
