@@ -29,7 +29,12 @@ function createWindow() {
 }
 
 function spawnPython() {
-  python = spawn('python', [path.join(__dirname, '../backend/main.py')])
+  const venvPython = path.join(__dirname, '../backend/.venv/bin/python')
+  const systemPython = 'python'
+  const pythonBin = require('fs').existsSync(venvPython) ? venvPython : systemPython
+  python = spawn(pythonBin, [path.join(__dirname, '../backend/main.py')], {
+    cwd: path.join(__dirname, '../backend')
+  })
 
   let buffer = ''
   python.stdout.on('data', (data) => {
