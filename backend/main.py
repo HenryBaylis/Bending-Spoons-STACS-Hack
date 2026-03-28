@@ -21,41 +21,42 @@ def emit(event: dict):
 
 
 async def audio_loop(profile: dict):
-    buffer = deque(maxlen=5)
-    chunk_count = 0
+    word_buffer = deque(maxlen=20)
+    word_count = 0
     summary_accumulator = []
     running_summary = ""
     last_triggered = 0
+    chunk_offset = 0.0
 
     for chunk in audio.stream():
-        text = stt.transcribe(chunk)
-        if not text:
-            continue
+        words = list(stt.transcribe_words(chunk, chunk_offset=chunk_offset))
+        chunk_offset += config.AUDIO_CHUNK_SECONDS
 
-        chunk_count += 1
-        buffer.append(text)
-        summary_accumulator.append(text)
+        for word, _start, _end in words:
+            word_count += 1
+            word_buffer.append(word)
+            summary_accumulator.append(word)
+            context = " ".join(word_buffer)
 
-        # Emit rolling transcript window
-        context = " ".join(buffer)
-        emit({"type": "transcript", "text": context[-TRANSCRIPT_WINDOW:]})
+            # Emit rolling transcript window after each word
+            emit({"type": "transcript", "text": context[-TRANSCRIPT_WINDOW:]})
 
-        # Summarize every N chunks
-        if chunk_count % summarizer.SUMMARIZE_EVERY == 0:
-            block = " ".join(summary_accumulator)
-            summary_accumulator.clear()
-            running_summary = await summarizer.summarize(block)
-            emit({"type": "summary", "text": running_summary})
+            # Summarize every N words
+            if word_count % (summarizer.SUMMARIZE_EVERY * 10) == 0:
+                block = " ".join(summary_accumulator)
+                summary_accumulator.clear()
+                running_summary = await summarizer.summarize(block)
+                emit({"type": "summary", "text": running_summary})
 
-        # Question detection
-        if detector.is_directed_at_me(context, profile["name"]):
-            now = time.time()
-            if now - last_triggered < DEBOUNCE_SECONDS:
-                continue
-            last_triggered = now
+            # Question detection after each word
+            if detector.is_directed_at_me(context, profile["name"]):
+                now = time.time()
+                if now - last_triggered < DEBOUNCE_SECONDS:
+                    continue
+                last_triggered = now
 
-            answer = await answerer.generate_answer(context, summary=running_summary)
-            emit({"type": "question", "transcript": context, "answer": answer})
+                answer = await answerer.generate_answer(context, summary=running_summary)
+                emit({"type": "question", "transcript": context, "answer": answer})
 
 
 async def main():

@@ -1,5 +1,7 @@
 import os
 
+_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # --- API keys ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
@@ -21,5 +23,5 @@ WHISPER_MODEL = "base"
 DETECTION_THRESHOLD = 0.8
 
 # --- Profile ---
-PROFILE_PATH = "profile.json"
+PROFILE_PATH = os.path.join(_DIR, "profile.json")
 
