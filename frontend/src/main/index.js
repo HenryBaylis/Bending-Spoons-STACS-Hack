@@ -99,7 +99,11 @@ app.whenReady().then(() => {
 
 ipcMain.on("start-meeting", (_, profile) => {
   const profilePath = join(__dirname, "../../../backend/profile.json");
-  writeFileSync(profilePath, JSON.stringify(profile, null, 2));
+  writeFileSync(profilePath, JSON.stringify({
+    name: profile.name,
+    job_title: profile.role,
+    context_file: profile.contextFile || null,
+  }, null, 2));
   win.setIgnoreMouseEvents(true, { forward: true });
   spawnPython();
 });

@@ -86,7 +86,11 @@ electron.app.whenReady().then(() => {
 });
 electron.ipcMain.on("start-meeting", (_, profile) => {
   const profilePath = path.join(__dirname, "../../../backend/profile.json");
-  fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2));
+  fs.writeFileSync(profilePath, JSON.stringify({
+    name: profile.name,
+    job_title: profile.role,
+    context_file: profile.contextFile || null
+  }, null, 2));
   win.setIgnoreMouseEvents(true, { forward: true });
   spawnPython();
 });
