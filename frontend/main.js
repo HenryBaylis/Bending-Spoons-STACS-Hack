@@ -1,14 +1,16 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, globalShortcut, screen } = require('electron')
 const path = require('path')
+const fs = require('fs')
 const { spawn } = require('child_process')
 
 let win
 let python
+let contextFilePath = null
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 420,
-    height: 260,
+    width: 480,
+    height: 520,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -21,26 +23,30 @@ function createWindow() {
   })
 
   win.loadFile(path.join(__dirname, 'index.html'))
-  win.setIgnoreMouseEvents(true, { forward: true })
-
-  const { screen } = require('electron')
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize
-  win.setPosition(width - 440, height - 200)
+  win.center()
 }
 
-function spawnPython() {
-  python = spawn('python', [path.join(__dirname, '../backend/main.py')])
+function spawnPython(env = {}) {
+  const venvPython = path.join(__dirname, '../backend/.venv/bin/python')
+  const pythonBin = fs.existsSync(venvPython) ? venvPython : 'python'
+
+  python = spawn(pythonBin, [path.join(__dirname, '../backend/main.py')], {
+    cwd: path.join(__dirname, '../backend'),
+    env: { ...process.env, ...env }
+  })
 
   let buffer = ''
   python.stdout.on('data', (data) => {
     buffer += data.toString()
     const lines = buffer.split('\n')
-    buffer = lines.pop() // keep incomplete line
+    buffer = lines.pop()
     for (const line of lines) {
       if (!line.trim()) continue
       try {
         const event = JSON.parse(line)
-        if (event.type === 'transcript' || event.type === 'summary') {
+        if (event.type === 'mention') {
+          win.webContents.send('mention')
+        } else if (event.type === 'transcript' || event.type === 'summary') {
           win.webContents.send(event.type, event)
         } else if (event.type === 'question') {
           win.setIgnoreMouseEvents(false)
@@ -61,14 +67,86 @@ function spawnPython() {
   })
 }
 
+function startMeeting(payload) {
+  // Write profile.json
+  const profile = {
+    name: payload.name,
+    job_title: payload.jobTitle,
+    company: '',
+    team: '',
+    responsibilities: '',
+    current_projects: '',
+    extra_context: ''
+  }
+  fs.writeFileSync(
+    path.join(__dirname, '../backend/profile.json'),
+    JSON.stringify(profile, null, 2)
+  )
+
+  // Write context file if provided
+  const env = {}
+  if (payload.contextFile) {
+    const ext = path.extname(payload.contextFile.name).toLowerCase()
+    const dest = path.join(__dirname, `../backend/meeting_context${ext}`)
+    if (payload.contextFile.type === 'application/pdf') {
+      fs.writeFileSync(dest, Buffer.from(payload.contextFile.data))
+      env.MEETING_CONTEXT_PATH = dest
+      env.MEETING_CONTEXT_TYPE = 'pdf'
+    } else {
+      fs.writeFileSync(dest, payload.contextFile.data, 'utf8')
+      env.MEETING_CONTEXT_PATH = dest
+      env.MEETING_CONTEXT_TYPE = 'text'
+    }
+    contextFilePath = dest
+  }
+
+  spawnPython(env)
+
+  // Switch to overlay mode
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize
+  win.setSize(420, 260)
+  win.setPosition(width - 440, height - 200)
+  win.setIgnoreMouseEvents(true, { forward: true })
+  win.webContents.send('show-overlay')
+}
+
+function stopMeeting() {
+  if (!python) return
+  python.kill()
+  python = null
+
+  if (contextFilePath && fs.existsSync(contextFilePath)) {
+    fs.unlinkSync(contextFilePath)
+    contextFilePath = null
+  }
+
+  win.setSize(480, 520)
+  win.center()
+  win.setIgnoreMouseEvents(false)
+  win.webContents.send('show-setup')
+}
+
 app.whenReady().then(() => {
   createWindow()
-  spawnPython()
+
+  win.webContents.once('did-finish-load', () => {
+    win.webContents.send('show-setup')
+  })
+
+  globalShortcut.register('CommandOrControl+Shift+M', stopMeeting)
+})
+
+ipcMain.on('start-meeting', (_, payload) => {
+  startMeeting(payload)
 })
 
 ipcMain.on('dismiss', () => {
   win.setIgnoreMouseEvents(true, { forward: true })
   win.webContents.send('dismiss')
+})
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
 })
 
 app.on('window-all-closed', () => {

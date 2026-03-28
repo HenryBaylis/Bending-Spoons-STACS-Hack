@@ -1,17 +1,30 @@
-import google.generativeai as genai
+import anthropic
 import config
 
-genai.configure(api_key=config.GEMINI_API_KEY)
-_model = genai.GenerativeModel("gemini-2.0-flash")
-
-SUMMARIZE_EVERY = 10  # chunks between each summarization
+_client = anthropic.AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
 
 
-async def summarize(text: str) -> str:
-    """Condense a block of meeting transcript into one sentence."""
-    prompt = (
-        "Summarize the following meeting transcript excerpt in exactly one concise sentence. "
-        "Capture the key topic or decision only.\n\n" + text
+async def update_summary(previous_summary: str, new_transcript: str) -> str:
+    """
+    Update the running meeting summary with new transcript content.
+    Keeps the summary to two sentences maximum.
+    """
+    if previous_summary:
+        prompt = (
+            f"Previous meeting summary: {previous_summary}\n\n"
+            f"New transcript: {new_transcript}\n\n"
+            "Update the summary to include the new information. "
+            "Write exactly two concise sentences capturing the key topics and decisions so far."
+        )
+    else:
+        prompt = (
+            "Summarize the following meeting transcript in exactly two concise sentences. "
+            f"Capture the key topics and decisions only.\n\n{new_transcript}"
+        )
+
+    message = await _client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=128,
+        messages=[{"role": "user", "content": prompt}],
     )
-    response = await _model.generate_content_async(prompt)
-    return response.text.strip()
+    return message.content[0].text.strip()
