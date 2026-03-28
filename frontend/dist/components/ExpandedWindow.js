@@ -9,13 +9,44 @@ function ExpandedWindow(_ref) {
   var question = _ref.question,
     answer = _ref.answer,
     followUp = _ref.followUp,
+    modes = _ref.modes,
     onDismiss = _ref.onDismiss;
   return /*#__PURE__*/(0, _jsxRuntime.jsxs)("div", {
     id: "question-section",
     className: "visible",
-    children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("div", {
-      className: "label",
-      children: "Someone's asking you"
+    children: [/*#__PURE__*/(0, _jsxRuntime.jsxs)("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 6
+      },
+      children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("div", {
+        className: "label",
+        style: {
+          margin: 0
+        },
+        children: "Someone's asking you"
+      }), modes && modes.length > 0 && /*#__PURE__*/(0, _jsxRuntime.jsx)("div", {
+        style: {
+          display: "flex",
+          gap: 4
+        },
+        children: modes.map(function (m) {
+          return /*#__PURE__*/(0, _jsxRuntime.jsx)("span", {
+            style: {
+              fontSize: 10,
+              background: "rgba(99,102,241,0.25)",
+              border: "1px solid rgba(99,102,241,0.5)",
+              borderRadius: 5,
+              padding: "2px 7px",
+              color: "rgba(180,180,255,0.9)",
+              fontWeight: 600
+            },
+            children: m
+          }, m);
+        })
+      })]
     }), /*#__PURE__*/(0, _jsxRuntime.jsx)("div", {
       id: "transcript-text",
       children: question

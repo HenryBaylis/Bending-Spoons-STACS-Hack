@@ -8,6 +8,7 @@ var _react = require("react");
 var _FillForm = _interopRequireDefault(require("./components/FillForm"));
 var _MockWindow = _interopRequireDefault(require("./components/MockWindow"));
 var _ExpandedWindow = _interopRequireDefault(require("./components/ExpandedWindow"));
+var _ModeSelector = _interopRequireDefault(require("./components/ModeSelector"));
 var _jsxRuntime = require("react/jsx-runtime");
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { "default": e }; }
 function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
@@ -21,18 +22,22 @@ function App() {
     _useState2 = _slicedToArray(_useState, 2),
     stage = _useState2[0],
     setStage = _useState2[1]; // 'form' | 'mock' | 'expanded'
-  var _useState3 = (0, _react.useState)(""),
+  var _useState3 = (0, _react.useState)([]),
     _useState4 = _slicedToArray(_useState3, 2),
-    question = _useState4[0],
-    setQuestion = _useState4[1];
+    modes = _useState4[0],
+    setModes = _useState4[1];
   var _useState5 = (0, _react.useState)(""),
     _useState6 = _slicedToArray(_useState5, 2),
-    answer = _useState6[0],
-    setAnswer = _useState6[1];
-  var _useState7 = (0, _react.useState)(null),
+    question = _useState6[0],
+    setQuestion = _useState6[1];
+  var _useState7 = (0, _react.useState)(""),
     _useState8 = _slicedToArray(_useState7, 2),
-    followUp = _useState8[0],
-    setFollowUp = _useState8[1];
+    answer = _useState8[0],
+    setAnswer = _useState8[1];
+  var _useState9 = (0, _react.useState)(null),
+    _useState0 = _slicedToArray(_useState9, 2),
+    followUp = _useState0[0],
+    setFollowUp = _useState0[1];
   var containerRef = (0, _react.useRef)(null);
   var handleClose = function handleClose() {
     var _window$api;
@@ -70,29 +75,38 @@ function App() {
     window.api.startMeeting(profile);
     setStage("mock");
   };
-  if (stage === "form") {
-    return /*#__PURE__*/(0, _jsxRuntime.jsx)("div", {
-      ref: containerRef,
-      children: /*#__PURE__*/(0, _jsxRuntime.jsx)(_FillForm["default"], {
-        onSubmit: handleStart,
-        onClose: handleClose
-      })
-    });
-  }
-  return /*#__PURE__*/(0, _jsxRuntime.jsx)("div", {
+  return /*#__PURE__*/(0, _jsxRuntime.jsxs)("div", {
+    id: "card",
+    style: {
+      position: "relative"
+    },
     ref: containerRef,
-    children: /*#__PURE__*/(0, _jsxRuntime.jsx)(_MockWindow["default"], {
-      onClose: handleClose,
+    children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("button", {
+      onClick: handleClose,
+      style: {
+        position: "absolute",
+        top: 4,
+        right: 4
+      },
+      children: "\u2715"
+    }), stage === "form" && /*#__PURE__*/(0, _jsxRuntime.jsx)(_FillForm["default"], {
+      onSubmit: handleStart
+    }), stage !== "form" && /*#__PURE__*/(0, _jsxRuntime.jsx)(_MockWindow["default"], {
+      modeSelector: /*#__PURE__*/(0, _jsxRuntime.jsx)(_ModeSelector["default"], {
+        modes: modes,
+        onChange: setModes
+      }),
       children: stage === "expanded" && /*#__PURE__*/(0, _jsxRuntime.jsx)(_ExpandedWindow["default"], {
         question: question,
         answer: answer,
         followUp: followUp,
+        modes: modes,
         onDismiss: function onDismiss() {
           var _window$api6;
           setStage("mock");
           (_window$api6 = window.api) === null || _window$api6 === void 0 || _window$api6.dismiss();
         }
       })
-    })
+    })]
   });
 }

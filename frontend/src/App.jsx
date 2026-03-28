@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import FillForm from "./components/FillForm";
 import MockWindow from "./components/MockWindow";
 import ExpandedWindow from "./components/ExpandedWindow";
+import ModeSelector from "./components/ModeSelector";
 
 export default function App() {
   const [stage, setStage] = useState("form"); // 'form' | 'mock' | 'expanded'
+  const [modes, setModes] = useState([]);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [followUp, setFollowUp] = useState(null);
@@ -39,29 +41,28 @@ export default function App() {
     setStage("mock");
   };
 
-  if (stage === "form") {
-    return (
-      <div ref={containerRef}>
-        <FillForm onSubmit={handleStart} onClose={handleClose} />
-      </div>
-    );
-  }
-
   return (
-    <div ref={containerRef}>
-      <MockWindow onClose={handleClose}>
-        {stage === "expanded" && (
-          <ExpandedWindow
-            question={question}
-            answer={answer}
-            followUp={followUp}
-            onDismiss={() => {
-              setStage("mock");
-              window.api?.dismiss();
-            }}
-          />
-        )}
-      </MockWindow>
+    <div id="card" style={{ position: "relative" }} ref={containerRef}>
+      <button onClick={handleClose} style={{ position: "absolute", top: 4, right: 4 }}>✕</button>
+      {stage === "form" && (
+        <FillForm onSubmit={handleStart} />
+      )}
+      {stage !== "form" && (
+        <MockWindow modeSelector={<ModeSelector modes={modes} onChange={setModes} />}>
+          {stage === "expanded" && (
+            <ExpandedWindow
+              question={question}
+              answer={answer}
+              followUp={followUp}
+              modes={modes}
+              onDismiss={() => {
+                setStage("mock");
+                window.api?.dismiss();
+              }}
+            />
+          )}
+        </MockWindow>
+      )}
     </div>
   );
 }

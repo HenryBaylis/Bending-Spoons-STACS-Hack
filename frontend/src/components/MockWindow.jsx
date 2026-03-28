@@ -1,7 +1,7 @@
-export default function MockWindow({ onClose, children }) {
+export default function MockWindow({ modeSelector, children }) {
     return (
-        <div id="card" style={{ position: "relative" }}>
-            <button onClick={onClose} style={{ position: "absolute", top: 4, right: 4 }}>✕</button>
+        <div>
+            {modeSelector}
             <div id="live-section">
                 <div className="label"><span className="dot"></span>Live</div>
                 <div id="live-text">—</div>

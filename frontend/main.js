@@ -7,9 +7,9 @@ let python;
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 420,
-    height: 600,
-    transparent: true,
+    width: 520,
+    height: 220,
+    backgroundColor: '#0f0f14',
     frame: false,
     alwaysOnTop: true,
     skipTaskbar: true,
@@ -79,6 +79,11 @@ app.whenReady().then(() => {
 ipcMain.on("dismiss", () => {
   win.setIgnoreMouseEvents(true, { forward: true });
   win.webContents.send("dismiss");
+});
+
+ipcMain.on("resize-window", (_, height) => {
+  const [w] = win.getSize();
+  win.setSize(w, Math.max(Math.ceil(height) + 2, 100));
 });
 
 ipcMain.on("close-window", () => {

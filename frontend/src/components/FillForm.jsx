@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function FillForm({onSubmit, onClose}) {
+export default function FillForm({onSubmit}) {
     
     const [name, setName] = useState("")
     const [role, setRole] = useState("")
@@ -19,8 +19,7 @@ export default function FillForm({onSubmit, onClose}) {
     }
 
     return (
-        <div id="card" style={{ position: "relative" }}>
-            <button onClick={onClose} style={{ position: "absolute", top: 4, right: 4 }}>✕</button>
+        <div>
             <div className="label">Setup</div>
             <div style={{ marginBottom: 8 }}>
                 <div className="label">Name</div>

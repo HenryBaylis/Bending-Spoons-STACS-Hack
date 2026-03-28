@@ -6,22 +6,10 @@ Object.defineProperty(exports, "__esModule", {
 exports["default"] = MockWindow;
 var _jsxRuntime = require("react/jsx-runtime");
 function MockWindow(_ref) {
-  var onClose = _ref.onClose,
+  var modeSelector = _ref.modeSelector,
     children = _ref.children;
   return /*#__PURE__*/(0, _jsxRuntime.jsxs)("div", {
-    id: "card",
-    style: {
-      position: "relative"
-    },
-    children: [/*#__PURE__*/(0, _jsxRuntime.jsx)("button", {
-      onClick: onClose,
-      style: {
-        position: "absolute",
-        top: 4,
-        right: 4
-      },
-      children: "\u2715"
-    }), /*#__PURE__*/(0, _jsxRuntime.jsxs)("div", {
+    children: [modeSelector, /*#__PURE__*/(0, _jsxRuntime.jsxs)("div", {
       id: "live-section",
       children: [/*#__PURE__*/(0, _jsxRuntime.jsxs)("div", {
         className: "label",
