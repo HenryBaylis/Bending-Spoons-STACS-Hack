@@ -1,43 +1,84 @@
 """
-Demo: loads each audio file in audio_files/, chunks it, and runs STT on each chunk.
+Demo: loads each audio file in audio_files/, runs it through the VAD pipeline,
+and prints per-word output with detector results.
 Run from the backend directory: python test_stt.py
 """
 import os
+import collections
 import numpy as np
 import av
 import json
+import webrtcvad
 from collections import deque
 import config
 import stt
 import detector
-from stt import transcribe_words
 
 AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audio_files")
-CHUNK_SECONDS = 1
+FRAME_MS = 30
+FRAME_SAMPLES = int(config.AUDIO_SAMPLE_RATE * FRAME_MS / 1000)
+SILENCE_FRAMES = int(500 / FRAME_MS)
+MIN_SPEECH_FRAMES = int(200 / FRAME_MS)
+PADDING_FRAMES = int(150 / FRAME_MS)
 
 
-def load_audio(path: str) -> np.ndarray:
-    """Decode any audio file to a float32 mono array at 16kHz."""
+def load_audio_int16(path: str) -> np.ndarray:
+    """Decode audio file to int16 mono at 16kHz."""
     container = av.open(path)
     resampler = av.AudioResampler(format="fltp", layout="mono", rate=config.AUDIO_SAMPLE_RATE)
     samples = []
     for frame in container.decode(audio=0):
         for resampled in resampler.resample(frame):
             samples.append(resampled.to_ndarray()[0])
-    # flush resampler
     for resampled in resampler.resample(None):
         samples.append(resampled.to_ndarray()[0])
-    return np.concatenate(samples).astype(np.float32)
+    audio = np.concatenate(samples).astype(np.float32)
+    return (audio * 32768).clip(-32768, 32767).astype(np.int16)
 
 
-def chunk(audio: np.ndarray, chunk_seconds: float, sample_rate: int):
-    """Yield fixed-size chunks from an audio array."""
-    size = int(chunk_seconds * sample_rate)
-    for start in range(0, len(audio), size):
-        yield audio[start:start + size]
+def vad_segments(pcm_int16: np.ndarray):
+    """Run webrtcvad on int16 audio, yield float32 speech segments."""
+    vad = webrtcvad.Vad(2)
+    ring_buffer = collections.deque(maxlen=PADDING_FRAMES)
+    speech_frames = []
+    in_speech = False
+    silent_count = 0
+
+    for start in range(0, len(pcm_int16), FRAME_SAMPLES):
+        frame = pcm_int16[start:start + FRAME_SAMPLES]
+        if len(frame) < FRAME_SAMPLES:
+            break
+        frame_bytes = frame.tobytes()
+        is_speech = vad.is_speech(frame_bytes, config.AUDIO_SAMPLE_RATE)
+
+        if not in_speech:
+            ring_buffer.append(frame)
+            if is_speech:
+                in_speech = True
+                silent_count = 0
+                speech_frames.extend(ring_buffer)
+                ring_buffer.clear()
+        else:
+            speech_frames.append(frame)
+            if not is_speech:
+                silent_count += 1
+                if silent_count >= SILENCE_FRAMES:
+                    if len(speech_frames) >= MIN_SPEECH_FRAMES:
+                        pcm = np.concatenate(speech_frames).astype(np.float32) / 32768.0
+                        yield pcm
+                    speech_frames.clear()
+                    in_speech = False
+                    silent_count = 0
+            else:
+                silent_count = 0
+
+    # yield any remaining speech
+    if speech_frames and len(speech_frames) >= MIN_SPEECH_FRAMES:
+        pcm = np.concatenate(speech_frames).astype(np.float32) / 32768.0
+        yield pcm
 
 
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), config.PROFILE_PATH)) as f:
+with open(config.PROFILE_PATH) as f:
     profile = json.load(f)
 name = profile["name"]
 
@@ -49,20 +90,21 @@ else:
     for filename in files:
         path = os.path.join(AUDIO_DIR, filename)
         print(f"\n=== {filename} ===")
-        audio = load_audio(path)
-        duration = len(audio) / config.AUDIO_SAMPLE_RATE
-        print(f"Duration: {duration:.1f}s — splitting into {CHUNK_SECONDS}s chunks")
+        pcm = load_audio_int16(path)
+        segments = list(vad_segments(pcm))
+        print(f"VAD detected {len(segments)} speech segment(s)")
 
         word_buffer = deque(maxlen=20)
-        for i, chunk_audio in enumerate(chunk(audio, CHUNK_SECONDS, config.AUDIO_SAMPLE_RATE)):
-            offset = i * CHUNK_SECONDS
-            words = list(transcribe_words(chunk_audio, chunk_offset=offset))
+        for i, segment in enumerate(segments):
+            duration = len(segment) / config.AUDIO_SAMPLE_RATE
+            words = list(stt.transcribe_words(segment))
+            print(f"\n  Segment {i+1} ({duration:.2f}s):")
             if not words:
-                print(f"  [{offset:.0f}s] (silence)")
+                print("    (nothing transcribed)")
                 continue
             for word, start, end in words:
                 word_buffer.append(word)
                 context = " ".join(word_buffer)
                 triggered = detector.is_directed_at_me(context, name)
                 flag = " *** TRIGGERED ***" if triggered else ""
-                print(f"  [{start:.2f}s] {word}{flag}")
+                print(f"    [{start:.2f}s] {word}{flag}")

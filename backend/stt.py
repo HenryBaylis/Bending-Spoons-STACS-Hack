@@ -11,7 +11,7 @@ def transcribe(audio: np.ndarray) -> str:
     Returns an empty string if nothing was detected.
     """
     audio = _normalise(audio)
-    segments, _ = _model.transcribe(audio, beam_size=5, language="en", vad_filter=True)
+    segments, _ = _model.transcribe(audio, beam_size=5, language="en")
     text = " ".join(seg.text.strip() for seg in segments).strip()
     return text
 
@@ -23,7 +23,7 @@ def transcribe_words(audio: np.ndarray, chunk_offset: float = 0.0):
     """
     audio = _normalise(audio)
     segments, _ = _model.transcribe(
-        audio, beam_size=5, language="en", vad_filter=True, word_timestamps=True
+        audio, beam_size=5, language="en", word_timestamps=True
     )
     for segment in segments:
         for word in segment.words:
