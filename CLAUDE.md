@@ -1,79 +1,99 @@
 # Meeting Monitor
 
 ## What this is
-A passive meeting assistant that listens to meeting audio, detects when someone directs a question at the user, and surfaces a transparent always-on-top overlay with the live transcript, a rolling meeting summary, and an AI-suggested response.
+A passive meeting assistant that listens to meeting audio, detects when someone directs a question at the user by name, and surfaces a transparent always-on-top overlay with the live transcript, a rolling meeting summary, and an AI-suggested response.
 
 ## Stack
-- **Python** — VAD, audio capture, STT, question detection, summarisation, AI answer generation
-- **Electron (JS)** — transparent overlay UI, spawns Python as a child process
+- **Python** — audio capture, STT, question detection, summarisation, AI answer generation
+- **Electron (JS)** — transparent overlay UI + setup screen, spawns Python as a child process
 - **Claude API (Haiku 4.5)** — answer generation and summarisation
+- **faster-whisper (tiny, local)** — speech to text
+- **parec (Linux) / sounddevice (macOS)** — system audio loopback capture
 
 ## How it runs
-`npm start` → Electron launches → spawns `backend/main.py` as a child process → Python starts the audio pipeline → events written as newline-delimited JSON to stdout → Electron reads stdout, forwards to renderer → overlay displays.
+`npm start` → Electron launches → **setup screen** shown → user enters name, job title, optional context file → clicks Start → Electron writes `profile.json`, spawns `backend/main.py` → Python starts audio pipeline → events written as newline-delimited JSON to stdout → Electron reads stdout, forwards to renderer → overlay displays.
+
+**Ctrl+Shift+M** stops the meeting and returns to the setup screen.
 
 ## File overview
-- `frontend/main.js` — Electron entry point: spawns venv Python, reads stdout, bridges to renderer via IPC
-- `frontend/index.html` — transparent frameless overlay UI (vanilla JS, no framework)
-- `backend/main.py` — Python entry point: wires audio → STT → detector → answerer, emits JSON events
-- `backend/audio.py` — sounddevice loopback capture with webrtcvad speech-end detection
-- `backend/stt.py` — faster-whisper (tiny model) transcription with per-word timestamps
-- `backend/detector.py` — heuristic question/mention detection (name + question patterns)
-- `backend/answerer.py` — Claude Haiku API call with user profile + meeting summary as context
-- `backend/summarizer.py` — chains meeting transcript into a rolling 2-sentence summary via Claude Haiku
+- `frontend/main.js` — Electron entry: handles setup IPC, spawns venv Python, reads stdout, bridges to renderer
+- `frontend/index.html` — setup screen + transparent overlay UI (vanilla JS, no framework)
+- `backend/main.py` — Python entry: wires audio → STT → detector → answerer, emits JSON events
+- `backend/audio.py` — cross-platform audio capture (parec on Linux, sounddevice on macOS), overlapping 2.4s chunks with 0.8s step
+- `backend/stt.py` — faster-whisper (tiny) transcription with per-word timestamps, vad_filter=True
+- `backend/detector.py` — heuristic question/mention detection (name + question patterns + team mention)
+- `backend/answerer.py` — Claude Haiku API call with profile + summary + 100-word context + optional meeting doc
+- `backend/summarizer.py` — rolling 2-sentence chained summary via Claude Haiku every 100 words
 - `backend/vision.py` — optional screen capture via mss for multimodal answers
-- `backend/profile.json` — user's name, job title, company, responsibilities (edit before use)
-- `backend/config.py` — API keys, audio device, Whisper model size
-- `backend/transcripts/` — per-session transcript files (gitignored)
-- `backend/test_stt.py` — test VAD + STT pipeline against audio files
+- `backend/profile.json` — written at runtime from setup screen (name, job_title)
+- `backend/config.py` — API keys, audio device, Whisper model, chunk settings
+- `backend/transcripts/` — per-session transcript + summary files (gitignored)
+- `backend/test_stt.py` — test STT pipeline against audio files
 - `backend/test_mic.py` — test live mic input and transcription
+- `backend/test_vad.py` — test audio capture + STT pipeline live
+- `backend/test_detector.py` — unit tests for question detection patterns
+- `backend/test_logic.py` — simulate word-by-word loop, test ? wait and timeout logic
+- `backend/test_e2e.py` — end-to-end test with simulated transcripts → Claude API
+- `backend/test_meeting.py` — full meeting script simulation through detection + Claude
 
 ## Key decisions
 - All AI/audio logic in Python, Electron is just a display shell
 - stdout/stdin is the bridge — newline-delimited JSON, no WebSocket needed
-- webrtcvad fires Whisper as soon as speech ends (~500ms silence), not on a fixed timer
-- Per-word timestamps from faster-whisper — detector runs after every word, not every chunk
+- **Overlapping chunks**: 2.4s windows advancing every 0.8s (50% overlap) — words cut at chunk boundaries are re-transcribed with full context in the next chunk
+- **Word confirmation**: words only emitted if their timestamp falls within the confirmed overlap region (not at the trailing edge of a chunk)
+- **? wait logic**: when a question is detected, waits for `?` before calling Claude (max 3s timeout)
+- 100-word rolling buffer sent to Claude for answer context + rolling 2-sentence summary
 - Heuristic detector only — no LLM classifier, keeps Claude calls to ~1 per question
-- Rolling 2-sentence chained summary — passes full meeting context to answerer without growing unboundedly
-- Raw transcript appended to file every 100 words for persistence
-- User profile injected as system prompt so answers are personalised and in-character
+- 10s debounce on question detection, 5s debounce on mention ping
+- Optional meeting context file (TXT/MD injected into system prompt; PDF via Claude document API)
+- Profile written from setup screen at meeting start, not hardcoded
 - venv Python used by Electron to avoid system Python package conflicts
 
 ## Data flow
 ```
-audio.py  →  sounddevice 30ms int16 frames
-              webrtcvad detects speech/silence
-              yields float32 speech segment on 500ms silence
+parec/sounddevice → raw PCM at AUDIO_SAMPLE_RATE
+    ↓
+audio.py  →  overlapping 2.4s chunks, advancing 0.8s per step
     ↓
 stt.py    →  faster-whisper tiny → (word, start, end) tuples
     ↓
-main.py   →  per word:
+main.py   →  per word (timestamp-deduplicated, confirmed only):
               - emit transcript (last 20 chars) to frontend
+              - check is_mentioned → emit mention ping (5s debounce)
               - every 100 words:
-                  append to transcripts/YYYY-MM-DD.txt
-                  Claude Haiku: update 2-sentence chained summary
+                  append to transcripts/YYYY-MM-DD_HH-MM-SS.txt
+                  Claude Haiku: update 2-sentence summary
+                  append to _summary.txt
                   emit summary to frontend
               - detector: name + question pattern?
-                  → Claude Haiku: generate answer (profile + summary + last 20 words)
-                  → emit question+answer to frontend
+                  → wait for ? (max 3s)
+                  → Claude Haiku: generate answer (profile + doc + summary + last 100 words)
+                  → emit question+answer to frontend (10s debounce)
     ↓
 frontend  →  transcript → live caption strip
+             mention    → yellow border ping on overlay card
              summary    → summary panel
-             question   → answer card (slides in)
+             question   → answer card (slides in, dismissible)
 ```
 
 ## Latency
-~500ms VAD + ~350ms Whisper tiny + ~1–2s Claude Haiku = **~2–3s** after speech ends
+0.8s chunk step + ~350ms Whisper tiny + 0–3s ? wait + ~1.5s Claude Haiku = **~2.7–5.7s** after question ends
+
+Typical case (~1s after question ends): **~3.7s**
 
 ## Setup
 ```bash
 ./setup.sh
-# edit backend/profile.json with your details
 export ANTHROPIC_API_KEY=your_key_here
 npm start
+# Fill in name + job title in setup screen, optionally attach a context file
 ```
 
 ## Linux loopback
-To capture meeting audio (not mic), set `AUDIO_DEVICE` in `config.py` to your PipeWire monitor source:
+Audio is captured from system output (not mic) via `parec`. Set `AUDIO_DEVICE` in `config.py`:
 ```bash
 pactl list sources short  # find the line ending in .monitor
 ```
+
+## macOS
+Set `AUDIO_DEVICE = "BlackHole 2ch"` in `config.py` (requires BlackHole virtual audio driver).

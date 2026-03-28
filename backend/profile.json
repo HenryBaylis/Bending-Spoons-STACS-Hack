@@ -1,9 +1,9 @@
 {
-  "name": "Henry",
-  "job_title": "Software Engineer",
-  "company": "Acme Corp",
-  "team": "Platform",
-  "responsibilities": "Backend services, API design, on-call rotation",
-  "current_projects": "Migrating auth service to OAuth2, Q3 infra cost reduction",
-  "extra_context": "I prefer concise answers in meetings. I report to the CTO."
+  "name": "Tony",
+  "job_title": "Developer",
+  "company": "",
+  "team": "",
+  "responsibilities": "",
+  "current_projects": "",
+  "extra_context": ""
 }
