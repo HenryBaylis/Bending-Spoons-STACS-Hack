@@ -1,0 +1,6 @@
+sounddevice
+numpy
+faster-whisper
+google-generativeai
+mss
+Pillow
