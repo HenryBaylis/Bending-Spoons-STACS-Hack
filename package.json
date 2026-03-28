@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/HenryBaylis/Bending-Spoons-STACS-Hack#readme",
   "devDependencies": {
-    "electron": "^41.1.0"
+    "electron": "^41.1.0",
+    "electron-vite": "^5.0.0"
   }
 }
