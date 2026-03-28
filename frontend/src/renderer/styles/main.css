@@ -1,5 +1,13 @@
 @import "./base.css";
 
+@keyframes ping {
+  0%   { border-color: rgba(255, 255, 255, 0.1); }
+  30%  { border-color: rgba(250, 204, 21, 0.7); }
+  100% { border-color: rgba(255, 255, 255, 0.1); }
+}
+
+#card.mentioned { animation: ping 1s ease; }
+
 * {
   margin: 0;
   padding: 0;

@@ -5,11 +5,12 @@ import ExpandedWindow from '../../components/ExpandedWindow'
 
 export default function App() {
   const [stage, setStage] = useState('form') // 'form' | 'mock' | 'expanded'
-  const [question, setQuestion] = useState("Can you tell us about yourself?")
-  const [answer, setAnswer] = useState("I am a software engineer with experience in React and Electron.")
+  const [question, setQuestion] = useState("")
+  const [answer, setAnswer] = useState("")
+  const [followUp, setFollowUp] = useState(null)
   const containerRef = useRef(null)
 
-  const handleClose = () => window.close()
+  const handleClose = () => window.api?.closeWindow()
 
   useEffect(() => {
     const el = containerRef.current
@@ -22,11 +23,15 @@ export default function App() {
   }, [stage])
 
   useEffect(() => {
-    if (stage === 'mock') {
-      const timer = setTimeout(() => setStage('expanded'), 5000)
-      return () => clearTimeout(timer)
-    }
-  }, [stage])
+    window.api?.onQuestion((data) => {
+      setQuestion(data.transcript)
+      setAnswer(data.answer)
+      setFollowUp(data.follow_up || null)
+      setStage('expanded')
+    })
+    window.api?.onDismiss(() => setStage('mock'))
+    window.api?.onStopMeeting(() => setStage('form'))
+  }, [])
 
   const handleStart = (profile) => {
     window.api.startMeeting(profile)
@@ -44,7 +49,11 @@ export default function App() {
           <ExpandedWindow
             question={question}
             answer={answer}
-            onDismiss={() => setStage('mock')}
+            followUp={followUp}
+            onDismiss={() => {
+              setStage('mock')
+              window.api?.dismiss()
+            }}
           />
         )}
       </MockWindow>

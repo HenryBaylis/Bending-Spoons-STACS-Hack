@@ -82,7 +82,6 @@ async def audio_loop(profile: dict):
                 if now - last_triggered >= DEBOUNCE_SECONDS and now - last_mention >= MENTION_DEBOUNCE:
                     label = await detector_llm.classify(context, profile["name"])
                     if label == "question":
-                        last_triggered = now
                         pending_question_at = now
                     elif label == "mention":
                         last_mention = now
@@ -93,8 +92,8 @@ async def audio_loop(profile: dict):
                 question_complete = "?" in word
                 timed_out = (now - pending_question_at) >= QUESTION_MAX_WAIT
                 if question_complete or timed_out:
-                    last_triggered = now
                     pending_question_at = None
+                    last_triggered = now
                     result = await answerer.generate_answer(context, summary=running_summary)
                     emit({"type": "question", "transcript": context, "answer": result["answer"], "follow_up": result["follow_up"]})
 
