@@ -11,12 +11,11 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 AUDIO_DEVICE = None
 AUDIO_SAMPLE_RATE = 16000
 AUDIO_CHANNELS = 1
-AUDIO_CHUNK_SECONDS = 3  # how many seconds of audio per STT chunk
 
 # --- STT ---
 # faster-whisper model size: tiny, base, small, medium, large
 # smaller = faster but less accurate
-WHISPER_MODEL = "base"
+WHISPER_MODEL = "tiny"
 
 # --- Detector ---
 # minimum confidence before alerting (0.0 - 1.0, heuristic only uses 0 or 1)

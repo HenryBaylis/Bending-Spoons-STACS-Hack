@@ -5,6 +5,7 @@ Run from the backend directory: python test_stt.py
 """
 import os
 import collections
+import time
 import numpy as np
 import av
 import json
@@ -97,8 +98,10 @@ else:
         word_buffer = deque(maxlen=20)
         for i, segment in enumerate(segments):
             duration = len(segment) / config.AUDIO_SAMPLE_RATE
+            t0 = time.perf_counter()
             words = list(stt.transcribe_words(segment))
-            print(f"\n  Segment {i+1} ({duration:.2f}s):")
+            elapsed = time.perf_counter() - t0
+            print(f"\n  Segment {i+1} ({duration:.2f}s) — STT took {elapsed*1000:.0f}ms:")
             if not words:
                 print("    (nothing transcribed)")
                 continue
