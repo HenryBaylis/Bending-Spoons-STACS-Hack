@@ -13,7 +13,8 @@ function createWindow() {
     width: 420,
     height: 360,
     transparent: true,
-    frame: false,
+    // DOESNT WORK FOR SOME REASON
+    //frame: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,

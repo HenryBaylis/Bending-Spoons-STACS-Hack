@@ -1,6 +1,7 @@
 import { contextBridge } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 
+/*
 const { ipcRenderer } = require("electron");
 
 // ── DOM-based live updates (elements always present in MockWindow) ──
