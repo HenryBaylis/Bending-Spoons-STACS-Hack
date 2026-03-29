@@ -184,36 +184,6 @@ def _raw_buffer_thread(raw_buffer: deque, stop_event: threading.Event, device_st
 
 
 
-async def mic_commitment_loop(mic_word_buffer: deque, mic_raw_buffer: deque):
-    """TEMP: detects promises from mic input and records mic audio for the clip."""
-    pending_at = None
-    last_commitment = 0
-    COMMITMENT_DEBOUNCE = 15
-    COMMITMENT_MAX_WAIT = 20.0
-    transcript_dir = os.path.join(os.path.dirname(__file__), "transcripts")
-
-    while True:
-        await asyncio.sleep(0.5)
-        if not mic_word_buffer:
-            continue
-        mic_context = " ".join(mic_word_buffer)
-        now = time.time()
-
-        if pending_at is None:
-            if commitment.has_promise(mic_context) and now - last_commitment >= COMMITMENT_DEBOUNCE:
-                pending_at = now
-        else:
-            words = list(mic_word_buffer)
-            last_word = words[-1] if words else ""
-            if commitment.is_sentence_end(last_word) or (now - pending_at) >= COMMITMENT_MAX_WAIT:
-                n_steps = int((now - pending_at) / config.AUDIO_STEP_SECONDS) + 3
-                clip_path = commitment.save_clip(mic_raw_buffer, n_steps, config.AUDIO_SAMPLE_RATE, transcript_dir)
-                screenshot = vision.capture()
-                last_commitment = now
-                pending_at = None
-                emit({"type": "commitment", "text": mic_context, "clip_path": clip_path, "screenshot": screenshot})
-
-
 async def stdin_loop(word_buffer: deque, mic_word_buffer: deque):
     """Reads commands from Electron via stdin and acts on them."""
     while True:
@@ -254,17 +224,12 @@ async def main():
     t = threading.Thread(target=_raw_buffer_thread, args=(raw_buffer, stop_event), daemon=True)
     t.start()
 
-    mic_raw_buffer = deque(maxlen=int(PROMISE_BUFFER_SECONDS / config.AUDIO_STEP_SECONDS) + 1)
-
     t_mic = threading.Thread(target=mic_loop, args=(mic_word_buffer,), daemon=True)
     t_mic.start()
-    t_mic_raw = threading.Thread(target=_raw_buffer_thread, args=(mic_raw_buffer, stop_event), kwargs={"device_stream": audio.stream_steps_mic}, daemon=True)
-    t_mic_raw.start()
 
     try:
         await asyncio.gather(
             audio_loop(profile, raw_buffer, word_buffer, mic_word_buffer),
-            mic_commitment_loop(mic_word_buffer, mic_raw_buffer),
             stdin_loop(word_buffer, mic_word_buffer),
         )
     finally:

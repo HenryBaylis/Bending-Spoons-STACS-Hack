@@ -1,7 +1,7 @@
 sounddevice
-webrtcvad
 numpy
 faster-whisper
 anthropic
 mss
 Pillow
+python-dotenv
