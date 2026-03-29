@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
+
+    /* ── Setup screen ── */
+    #setup-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 15, 20, 0.97);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      flex-direction: column;
+      padding: 28px 24px;
+      -webkit-app-region: no-drag;
+    }
+
+    #setup-screen.visible { display: flex; }
+
+    #setup-screen h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    #setup-screen .subtitle {
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 24px;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 5px;
+    }
+
+    .field input[type="text"] {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 7px;
+      color: #fff;
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+      -webkit-app-region: no-drag;
+    }
+
+    .field input[type="text"]:focus {
+      border-color: rgba(255,255,255,0.3);
+    }
+
+    .file-drop {
+      border: 1px dashed rgba(255,255,255,0.15);
+      border-radius: 7px;
+      padding: 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      -webkit-app-region: no-drag;
+    }
+
+    .file-drop:hover, .file-drop.dragover {
+      border-color: rgba(255,255,255,0.35);
+    }
+
+    .file-drop p {
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 4px;
+    }
+
+    .file-drop .file-name {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .file-drop .file-hint {
+      font-size: 10px;
+      color: rgba(255,255,255,0.2);
+    }
+
+    #file-input { display: none; }
+
+    .actions {
+      margin-top: auto;
+      padding-top: 20px;
+    }
+
+    #start-btn {
+      width: 100%;
+      background: #fff;
+      color: #0f0f14;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+    }
+
+    #start-btn:hover { background: rgba(255,255,255,0.88); }
+    #start-btn:disabled { background: rgba(255,255,255,0.2); color: rgba(0,0,0,0.3); cursor: not-allowed; }
+
+    .hint {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.2);
+    }
+
+    /* ── Overlay card ── */
+    #card {
+      display: none;
+      background: rgba(15, 15, 20, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 14px 16px;
+      width: 840px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      -webkit-app-region: drag;
+    }
+
+    #card.visible { display: block; }
+
+    .label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 4px;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      margin-right: 6px;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #live-section {
+      margin-bottom: 10px;
+    }
+
+    #feature-toggles {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .feature-toggle {
+      -webkit-app-region: no-drag;
+      background: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      color: rgba(255,255,255,0.3);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    #answers-toggle.on   { border-color: rgba(34,197,94,0.4);  color: rgba(34,197,94,0.8);  }
+    #assert-toggle.on    { border-color: rgba(59,130,246,0.4);  color: rgba(59,130,246,0.8); }
+    #promises-toggle.on  { border-color: rgba(250,204,21,0.4);  color: rgba(250,204,21,0.8); }
+    #negotiate-toggle.on { border-color: rgba(249,115,22,0.4);  color: rgba(249,115,22,0.8); }
+
+    #live-text, #mic-text {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      font-family: monospace;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    #mention-section {
+      display: none;
+      margin-bottom: 10px;
+      border-left: 2px solid rgba(250, 204, 21, 0.5);
+      padding-left: 8px;
+    }
+
+    #mention-section.visible { display: block; }
+
+    #mention-text {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.4;
+    }
+
+    #summary-section { margin-bottom: 10px; }
+
+    #summary-text {
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+      line-height: 1.4;
+      font-style: italic;
+    }
+
+    #question-section {
+      display: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 10px;
+      animation: slideIn 0.2s ease;
+    }
+
+    #question-section.visible { display: block; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes ping {
+      0%   { border-color: rgba(255, 255, 255, 0.1); }
+      30%  { border-color: rgba(250, 204, 21, 0.7); }
+      100% { border-color: rgba(255, 255, 255, 0.1); }
+    }
+
+    #card.mentioned { animation: ping 1s ease; }
+
+    #transcript-text {
+      font-size: 13px;
+      color: rgba(255,255,255,0.65);
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+
+    #answer-text {
+      font-size: 14px;
+      color: #fff;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    #history-section {
+      display: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 8px;
+      margin-top: 2px;
+    }
+
+    #history-section.visible { display: block; }
+
+    #history-list {
+      max-height: 130px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .history-item {
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .history-item:last-child { border-bottom: none; }
+
+    .history-q {
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+      margin-bottom: 2px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .history-a {
+      font-size: 12px;
+      color: rgba(255,255,255,0.55);
+      line-height: 1.4;
+    }
+
+    #assertiveness-section {
+      display: none;
+      border-left: 2px solid rgba(239,68,68,0.5);
+      padding-left: 8px;
+      margin-bottom: 10px;
+      animation: slideIn 0.2s ease;
+    }
+
+    #assertiveness-section.visible { display: block; }
+
+    #assertiveness-text {
+      font-size: 13px;
+      color: rgba(255,255,255,0.8);
+      line-height: 1.4;
+    }
+
+    #tactic-section {
+      display: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 8px;
+      margin-top: 2px;
+      animation: slideIn 0.2s ease;
+    }
+
+    #tactic-section.visible { display: block; }
+
+    #tactic-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(250,204,21,0.9);
+      margin-bottom: 5px;
+    }
+
+    #tactic-counter {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.4;
+    }
+
+
+    #commitment-section {
+      display: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 8px;
+      margin-top: 2px;
+    }
+
+    #commitment-section.visible { display: block; }
+
+    #commitment-list {
+      max-height: 160px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .commitment-item {
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .commitment-item:last-child { border-bottom: none; }
+
+    .commitment-text {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.4;
+      margin-bottom: 5px;
+    }
+
+    .commitment-audio {
+      width: 100%;
+      height: 24px;
+      -webkit-app-region: no-drag;
+    }
+
+    .commitment-screenshot {
+      width: 100%;
+      border-radius: 4px;
+      margin-top: 4px;
+      opacity: 0.7;
+      cursor: pointer;
+    }
+
+    #llm-output {
+      max-height: 320px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      -webkit-app-region: no-drag;
+    }
+
+    button.dismiss-btn {
+      -webkit-app-region: no-drag;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 7px;
+      color: rgba(255,255,255,0.6);
+      font-size: 12px;
+      padding: 5px 12px;
+      cursor: pointer;
+    }
+
+    button.dismiss-btn:hover {
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Setup screen -->
+  <div id="setup-screen">
+    <h1>Meeting Monitor</h1>
+    <p class="subtitle">Set up your profile before the meeting starts</p>
+
+    <div class="field">
+      <label>Your name <span style="color:rgba(255,100,100,0.7)">*</span></label>
+      <input type="text" id="input-name" placeholder="e.g. Henry" />
+    </div>
+
+    <div class="field">
+      <label>Job title <span style="color:rgba(255,100,100,0.7)">*</span></label>
+      <input type="text" id="input-job" placeholder="e.g. Software Engineer" />
+    </div>
+
+    <div class="field">
+      <label>Meeting context <span style="color:rgba(255,255,255,0.2)">(optional — PDF, TXT, or MD)</span></label>
+      <div class="file-drop" id="file-drop" onclick="document.getElementById('file-input').click()">
+        <p>Click to attach a file</p>
+        <p class="file-name" id="file-name-display"></p>
+        <p class="file-hint">PDF, TXT, or MD — will be used as context for answers</p>
+      </div>
+      <input type="file" id="file-input" accept=".pdf,.txt,.md" />
+    </div>
+
+    <div class="actions">
+      <button id="start-btn" disabled>Start Meeting</button>
+      <p class="hint">Press Ctrl+Shift+M to stop the meeting</p>
+    </div>
+  </div>
+
+  <!-- Overlay card -->
+  <div id="card">
+    <div id="live-section">
+      <div class="label"><span class="dot"></span>Live</div>
+      <div id="live-text">—</div>
+    </div>
+
+    <div id="mic-section" style="margin-bottom:10px;">
+      <div class="label">Mic</div>
+      <div id="mic-text" style="color:rgba(255,255,255,0.35);">—</div>
+    </div>
+
+    <div id="feature-toggles">
+      <button class="feature-toggle on" id="answers-toggle"   onclick="toggleFeature('answers')">Answers</button>
+      <button class="feature-toggle on" id="assert-toggle"    onclick="triggerAssert()">Assertiveness</button>
+      <button class="feature-toggle on" id="promises-toggle"  onclick="toggleFeature('promises')">Promises</button>
+      <button class="feature-toggle on" id="negotiate-toggle" onclick="triggerNegotiate()">Negotiate</button>
+    </div>
+
+    <div id="llm-output">
+    <div id="assertiveness-section">
+      <div class="label">Hold your ground</div>
+      <div id="assertiveness-text"></div>
+    </div>
+
+    <div id="mention-section">
+      <div class="label">Mentioned</div>
+      <div id="mention-text"></div>
+    </div>
+
+    <div id="summary-section">
+      <div class="label">Last summary</div>
+      <div id="summary-text">—</div>
+    </div>
+
+    <div id="question-section">
+      <div class="label">Someone's asking you</div>
+      <div id="transcript-text"></div>
+      <div class="label" style="margin-bottom:6px">Suggested response</div>
+      <div id="answer-text"></div>
+      <div id="follow-up-section" style="display:none; margin-top:10px; border-top:1px solid rgba(255,255,255,0.06); padding-top:8px;">
+        <div class="label" style="margin-bottom:4px">Possible follow-up</div>
+        <div id="follow-up-text" style="font-size:13px; color:rgba(255,255,255,0.5); line-height:1.4; font-style:italic;"></div>
+      </div>
+      <button class="dismiss-btn" onclick="dismiss()" style="margin-top:12px;">Dismiss</button>
+    </div>
+
+    <div id="tactic-section">
+      <div class="label">Negotiation Tactic</div>
+      <div id="tactic-name"></div>
+      <div id="tactic-counter"></div>
+    </div>
+
+
+    <div id="history-section">
+      <div class="label">History</div>
+      <div id="history-list"></div>
+    </div>
+
+    <div id="commitment-section">
+      <div class="label">Commitments</div>
+      <div id="commitment-list"></div>
+    </div>
+    </div> <!-- end #llm-output -->
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron')
+
+    // ── Setup screen logic ──
+    const nameInput = document.getElementById('input-name')
+    const jobInput = document.getElementById('input-job')
+    const startBtn = document.getElementById('start-btn')
+    const fileInput = document.getElementById('file-input')
+    const fileNameDisplay = document.getElementById('file-name-display')
+    const fileDrop = document.getElementById('file-drop')
+
+    let pendingFile = null
+
+    function updateStartBtn() {
+      startBtn.disabled = !nameInput.value.trim() || !jobInput.value.trim()
+    }
+
+    nameInput.addEventListener('input', updateStartBtn)
+    jobInput.addEventListener('input', updateStartBtn)
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0]
+      if (!file) return
+      fileNameDisplay.textContent = file.name
+      const reader = new FileReader()
+      if (file.type === 'application/pdf') {
+        reader.readAsArrayBuffer(file)
+        reader.onload = () => {
+          pendingFile = { name: file.name, type: file.type, data: Array.from(new Uint8Array(reader.result)) }
+        }
+      } else {
+        reader.readAsText(file)
+        reader.onload = () => {
+          pendingFile = { name: file.name, type: file.type, data: reader.result }
+        }
+      }
+    })
+
+    // Drag and drop on file-drop zone
+    fileDrop.addEventListener('dragover', (e) => { e.preventDefault(); fileDrop.classList.add('dragover') })
+    fileDrop.addEventListener('dragleave', () => fileDrop.classList.remove('dragover'))
+    fileDrop.addEventListener('drop', (e) => {
+      e.preventDefault()
+      fileDrop.classList.remove('dragover')
+      const file = e.dataTransfer.files[0]
+      if (file) {
+        fileInput.files = e.dataTransfer.files
+        fileInput.dispatchEvent(new Event('change'))
+      }
+    })
+
+    startBtn.addEventListener('click', () => {
+      ipcRenderer.send('start-meeting', {
+        name: nameInput.value.trim(),
+        jobTitle: jobInput.value.trim(),
+        contextFile: pendingFile,
+      })
+    })
+
+    // ── Screen switching ──
+    ipcRenderer.on('show-setup', () => {
+      overlayActive = false
+      ipcRenderer.send('set-ignore-mouse', false)
+      document.getElementById('setup-screen').classList.add('visible')
+      document.getElementById('card').classList.remove('visible')
+      // Reset overlay state
+      document.getElementById('question-section').classList.remove('visible')
+      document.getElementById('mention-section').classList.remove('visible')
+      document.getElementById('history-section').classList.remove('visible')
+      document.getElementById('history-list').innerHTML = ''
+      document.getElementById('commitment-section').classList.remove('visible')
+      document.getElementById('commitment-list').innerHTML = ''
+      document.getElementById('assertiveness-section').classList.remove('visible')
+      document.getElementById('tactic-section').classList.remove('visible')
+      document.getElementById('live-text').textContent = '—'
+      document.getElementById('summary-text').textContent = '—'
+      mentionActiveUntil = 0
+      Object.keys(featureState).forEach(k => {
+        featureState[k] = true
+        document.getElementById(k + '-toggle').classList.add('on')
+      })
+      const assertBtn = document.getElementById('assert-toggle')
+      assertBtn.textContent = 'Assertiveness'; assertBtn.disabled = false
+      const negBtn = document.getElementById('negotiate-toggle')
+      negBtn.textContent = 'Negotiate'; negBtn.disabled = false
+    })
+
+    ipcRenderer.on('show-overlay', () => {
+      overlayActive = true
+      document.getElementById('setup-screen').classList.remove('visible')
+      document.getElementById('card').classList.add('visible')
+      ignoring = true
+      ipcRenderer.send('set-ignore-mouse', true)
+    })
+
+    // Pass mouse events through when not hovering over the overlay card.
+    // Use mousemove on the window level so it works even when transitioning
+    // from click-through mode (forward:true still delivers move events).
+    const card = document.getElementById('card')
+    let ignoring = false
+    let overlayActive = false
+    window.addEventListener('mousemove', (e) => {
+      if (!overlayActive) return
+      const r = card.getBoundingClientRect()
+      const over = e.clientX >= r.left && e.clientX <= r.right &&
+                   e.clientY >= r.top  && e.clientY <= r.bottom
+      if (over && ignoring) {
+        ignoring = false
+        ipcRenderer.send('set-ignore-mouse', false)
+      } else if (!over && !ignoring) {
+        ignoring = true
+        ipcRenderer.send('set-ignore-mouse', true)
+      }
+    })
+
+    // ── Feature toggles (answers + promises) ──
+    const featureState = { answers: true, promises: true }
+
+    function toggleFeature(name) {
+      featureState[name] = !featureState[name]
+      const on = featureState[name]
+      document.getElementById(name + '-toggle').classList.toggle('on', on)
+      if (name === 'answers' && !on) document.getElementById('question-section').classList.remove('visible')
+      ipcRenderer.send('toggle-feature', { name, enabled: on })
+    }
+
+    // ── Trigger buttons (assertiveness + negotiate) ──
+    function triggerAssert() {
+      const btn = document.getElementById('assert-toggle')
+      btn.textContent = '...'
+      btn.disabled = true
+      ipcRenderer.send('trigger-assertiveness')
+    }
+
+    function triggerNegotiate() {
+      const btn = document.getElementById('negotiate-toggle')
+      btn.textContent = '...'
+      btn.disabled = true
+      ipcRenderer.send('analyse-tactics')
+    }
+
+    // ── Overlay events ──
+    let mentionActiveUntil = 0
+
+    ipcRenderer.on('mention', (_, data) => {
+      card.classList.remove('mentioned')
+      void card.offsetWidth
+      card.classList.add('mentioned')
+      setTimeout(() => card.classList.remove('mentioned'), 1000)
+
+      mentionActiveUntil = Date.now() + 5000
+      document.getElementById('mention-text').textContent = data.words
+      document.getElementById('mention-section').classList.add('visible')
+      setTimeout(() => {
+        if (Date.now() >= mentionActiveUntil) {
+          document.getElementById('mention-section').classList.remove('visible')
+        }
+      }, 5000)
+    })
+
+    ipcRenderer.on('input_transcript', (_, data) => {
+      const el = document.getElementById('mic-text')
+      el.textContent = data.text
+      el.scrollTop = el.scrollHeight
+    })
+
+    const llmOutput = document.getElementById('llm-output')
+    function scrollLlmOutput() { llmOutput.scrollTop = llmOutput.scrollHeight }
+
+    ipcRenderer.on('transcript', (_, data) => {
+      document.getElementById('live-text').textContent = data.text
+      if (Date.now() < mentionActiveUntil) {
+        document.getElementById('mention-text').textContent = data.words
+      }
+    })
+
+    ipcRenderer.on('summary', (_, data) => {
+      document.getElementById('summary-text').textContent = data.text
+    })
+
+    ipcRenderer.on('question', (_, data) => {
+      // always log to history regardless of toggle
+      const item = document.createElement('div')
+      item.className = 'history-item'
+      item.innerHTML = `<div class="history-q">"${data.transcript}"</div><div class="history-a">${data.answer}</div>`
+      document.getElementById('history-list').prepend(item)
+      document.getElementById('history-section').classList.add('visible')
+
+      if (!featureState.answers) return
+
+      scrollLlmOutput()
+      document.getElementById('transcript-text').textContent = `"${data.transcript}"`
+      document.getElementById('answer-text').textContent = data.answer
+      const followUpSection = document.getElementById('follow-up-section')
+      if (data.follow_up) {
+        document.getElementById('follow-up-text').textContent = data.follow_up
+        followUpSection.style.display = 'block'
+      } else {
+        followUpSection.style.display = 'none'
+      }
+      document.getElementById('question-section').classList.add('visible')
+    })
+
+    ipcRenderer.on('assertiveness', (_, data) => {
+      const btn = document.getElementById('assert-toggle')
+      btn.textContent = 'Assertiveness'
+      btn.disabled = false
+      document.getElementById('assertiveness-text').textContent = data.rebuttal
+      document.getElementById('assertiveness-section').classList.add('visible')
+      scrollLlmOutput()
+      setTimeout(() => document.getElementById('assertiveness-section').classList.remove('visible'), 8000)
+    })
+
+    ipcRenderer.on('tactic', (_, data) => {
+      const btn = document.getElementById('negotiate-toggle')
+      btn.textContent = 'Negotiate'
+      btn.disabled = false
+      document.getElementById('tactic-name').textContent = data.tactic
+      document.getElementById('tactic-counter').textContent = data.counter
+      document.getElementById('tactic-section').classList.add('visible')
+      scrollLlmOutput()
+    })
+
+    ipcRenderer.on('commitment', (_, data) => {
+      const item = document.createElement('div')
+      if (!featureState.promises) return
+      item.className = 'commitment-item'
+      item.innerHTML = `
+        <div class="commitment-text">"${data.text}"</div>
+        <audio class="commitment-audio" controls src="file://${data.clip_path}"></audio>
+        <img class="commitment-screenshot" src="data:image/jpeg;base64,${data.screenshot}" onclick="this.style.opacity = this.style.opacity === '1' ? '0.7' : '1'" />
+      `
+      document.getElementById('commitment-list').prepend(item)
+      document.getElementById('commitment-section').classList.add('visible')
+    })
+
+    ipcRenderer.on('dismiss', () => {
+      document.getElementById('question-section').classList.remove('visible')
+    })
+
+    function dismiss() {
+      document.getElementById('question-section').classList.remove('visible')
+      ipcRenderer.send('dismiss')
+    }
+  </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 sounddevice
+webrtcvad
 numpy
 faster-whisper
-websockets
-google-generativeai
+anthropic
 mss
 Pillow
