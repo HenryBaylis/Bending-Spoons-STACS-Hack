@@ -27,8 +27,8 @@ Transcript (last 100 words):
 \"{context}\"
 
 Reply in exactly this format, nothing else:
-TACTIC: <tactic name, or "none">
-COUNTER: <one sentence counter-move, or blank if none>"""
+TACTIC: <tactic name, or "none detected">
+COUNTER: <one sentence counter-move, or a one sentence observation about the conversation if no tactic>"""
 
 
 async def analyse(context: str) -> dict:

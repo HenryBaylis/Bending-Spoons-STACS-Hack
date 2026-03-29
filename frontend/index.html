@@ -201,7 +201,7 @@
     #promises-toggle.on  { border-color: rgba(250,204,21,0.4);  color: rgba(250,204,21,0.8); }
     #negotiate-toggle.on { border-color: rgba(249,115,22,0.4);  color: rgba(249,115,22,0.8); }
 
-    #live-text {
+    #live-text, #mic-text {
       font-size: 12px;
       color: rgba(255,255,255,0.5);
       font-family: monospace;
@@ -394,6 +394,15 @@
       cursor: pointer;
     }
 
+    #llm-output {
+      max-height: 320px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      -webkit-app-region: no-drag;
+    }
+
     button.dismiss-btn {
       -webkit-app-region: no-drag;
       background: rgba(255,255,255,0.08);
@@ -451,6 +460,11 @@
       <div id="live-text">—</div>
     </div>
 
+    <div id="mic-section" style="margin-bottom:10px;">
+      <div class="label">Mic</div>
+      <div id="mic-text" style="color:rgba(255,255,255,0.35);">—</div>
+    </div>
+
     <div id="feature-toggles">
       <button class="feature-toggle on" id="answers-toggle"   onclick="toggleFeature('answers')">Answers</button>
       <button class="feature-toggle on" id="assert-toggle"    onclick="triggerAssert()">Assertiveness</button>
@@ -458,6 +472,7 @@
       <button class="feature-toggle on" id="negotiate-toggle" onclick="triggerNegotiate()">Negotiate</button>
     </div>
 
+    <div id="llm-output">
     <div id="assertiveness-section">
       <div class="label">Hold your ground</div>
       <div id="assertiveness-text"></div>
@@ -501,6 +516,7 @@
       <div class="label">Commitments</div>
       <div id="commitment-list"></div>
     </div>
+    </div> <!-- end #llm-output -->
   </div>
 
   <script>
@@ -564,6 +580,8 @@
 
     // ── Screen switching ──
     ipcRenderer.on('show-setup', () => {
+      overlayActive = false
+      ipcRenderer.send('set-ignore-mouse', false)
       document.getElementById('setup-screen').classList.add('visible')
       document.getElementById('card').classList.remove('visible')
       // Reset overlay state
@@ -589,15 +607,32 @@
     })
 
     ipcRenderer.on('show-overlay', () => {
+      overlayActive = true
       document.getElementById('setup-screen').classList.remove('visible')
       document.getElementById('card').classList.add('visible')
+      ignoring = true
+      ipcRenderer.send('set-ignore-mouse', true)
     })
 
-    // Pass mouse events through when not hovering over the card
+    // Pass mouse events through when not hovering over the overlay card.
+    // Use mousemove on the window level so it works even when transitioning
+    // from click-through mode (forward:true still delivers move events).
     const card = document.getElementById('card')
-    card.addEventListener('mouseenter', () => ipcRenderer.send('set-ignore-mouse', false))
-    card.addEventListener('mouseleave', () => ipcRenderer.send('set-ignore-mouse', true))
-    ipcRenderer.send('set-ignore-mouse', true)
+    let ignoring = false
+    let overlayActive = false
+    window.addEventListener('mousemove', (e) => {
+      if (!overlayActive) return
+      const r = card.getBoundingClientRect()
+      const over = e.clientX >= r.left && e.clientX <= r.right &&
+                   e.clientY >= r.top  && e.clientY <= r.bottom
+      if (over && ignoring) {
+        ignoring = false
+        ipcRenderer.send('set-ignore-mouse', false)
+      } else if (!over && !ignoring) {
+        ignoring = true
+        ipcRenderer.send('set-ignore-mouse', true)
+      }
+    })
 
     // ── Feature toggles (answers + promises) ──
     const featureState = { answers: true, promises: true }
@@ -644,6 +679,15 @@
       }, 5000)
     })
 
+    ipcRenderer.on('input_transcript', (_, data) => {
+      const el = document.getElementById('mic-text')
+      el.textContent = data.text
+      el.scrollTop = el.scrollHeight
+    })
+
+    const llmOutput = document.getElementById('llm-output')
+    function scrollLlmOutput() { llmOutput.scrollTop = llmOutput.scrollHeight }
+
     ipcRenderer.on('transcript', (_, data) => {
       document.getElementById('live-text').textContent = data.text
       if (Date.now() < mentionActiveUntil) {
@@ -665,6 +709,7 @@
 
       if (!featureState.answers) return
 
+      scrollLlmOutput()
       document.getElementById('transcript-text').textContent = `"${data.transcript}"`
       document.getElementById('answer-text').textContent = data.answer
       const followUpSection = document.getElementById('follow-up-section')
@@ -683,6 +728,7 @@
       btn.disabled = false
       document.getElementById('assertiveness-text').textContent = data.rebuttal
       document.getElementById('assertiveness-section').classList.add('visible')
+      scrollLlmOutput()
       setTimeout(() => document.getElementById('assertiveness-section').classList.remove('visible'), 8000)
     })
 
@@ -690,13 +736,10 @@
       const btn = document.getElementById('negotiate-toggle')
       btn.textContent = 'Negotiate'
       btn.disabled = false
-      if (data.tactic === 'none') {
-        document.getElementById('tactic-section').classList.remove('visible')
-        return
-      }
       document.getElementById('tactic-name').textContent = data.tactic
       document.getElementById('tactic-counter').textContent = data.counter
       document.getElementById('tactic-section').classList.add('visible')
+      scrollLlmOutput()
     })
 
     ipcRenderer.on('commitment', (_, data) => {

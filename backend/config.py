@@ -8,9 +8,9 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 # --- Audio ---
 # Set to None to auto-detect, or set to the name of your loopback device.
 # On Linux: run `pactl list sources short` and find the line ending in .monitor
-AUDIO_DEVICE = "alsa_output.pci-0000_63_00.6.analog-stereo.monitor"  # Linux: pactl list sources short | grep monitor
-# AUDIO_DEVICE = "BlackHole 2ch"  # macOS
-MIC_DEVICE = "alsa_input.pci-0000_63_00.6.analog-stereo"  # Linux: pactl list sources short | grep input
+AUDIO_DEVICE = "BlackHole 2ch"  # macOS: requires BlackHole installed + Multi-Output Device set up in Audio MIDI Setup
+# AUDIO_DEVICE = "alsa_output.pci-0000_63_00.6.analog-stereo.monitor"  # Linux
+MIC_DEVICE = "MacBook Pro Microphone"  # macOS built-in mic
 AUDIO_SAMPLE_RATE = 16000
 AUDIO_CHANNELS = 1
 AUDIO_CHUNK_SECONDS = 2.4   # window size — 3 overlapping chunks at any time

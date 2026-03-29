@@ -5,15 +5,22 @@ A passive meeting assistant that listens to meeting audio, detects when someone 
 
 ## Stack
 - **Python** — audio capture, STT, question detection, summarisation, AI answer generation
-- **Electron (JS)** — transparent overlay UI + setup screen, spawns Python as a child process
+- **Electron (JS)** — transparent overlay UI + setup screen, spawns Python as a child process; vanilla JS, no framework
 - **Claude API (Haiku 4.5)** — answer generation, summarisation, and LLM-based question/mention classification
-- **faster-whisper (tiny, local)** — speech to text
-- **parec (Linux) / sounddevice (macOS)** — system audio loopback capture
+- **faster-whisper (base, local)** — speech to text; model cached at `~/.cache/huggingface/hub/models--Systran--faster-whisper-base`
+- **sounddevice (macOS)** — audio capture from mic and loopback device
 
 ## How it runs
 `npm start` → Electron launches → **setup screen** shown → user enters name, job title, optional context file → clicks Start → Electron writes `profile.json`, saves context file to `backend/`, spawns `backend/main.py` with env vars → Python starts audio pipeline → events written as newline-delimited JSON to stdout → Electron reads stdout, forwards to renderer → overlay displays.
 
 **Ctrl+Shift+M** stops the meeting and returns to the setup screen.
+
+## API key
+Put your Anthropic API key in a `.env` file at the project root (already gitignored):
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+`frontend/main.js` loads this file on startup and injects it into the Python subprocess environment. No need to `export` in the shell.
 
 ## Frontend detail
 
@@ -26,6 +33,7 @@ A passive meeting assistant that listens to meeting audio, detects when someone 
 - On Start, `ipcRenderer.send('start-meeting', { name, jobTitle, contextFile })` is sent to main process
 
 ### Main process (`frontend/main.js`)
+- Loads `.env` from project root on startup (parses key=value lines, injects into `process.env`)
 - Receives `start-meeting` payload via `ipcMain.on`
 - Writes `backend/profile.json` with name, job_title, and empty fields for company/team/projects
 - If a context file was attached:
@@ -35,6 +43,7 @@ A passive meeting assistant that listens to meeting audio, detects when someone 
 - Spawns `backend/main.py` via the venv Python at `backend/.venv/bin/python`
 - Reads Python stdout line by line, parses JSON events, forwards to renderer via `webContents.send`
 - On stop: kills Python process, deletes context file, resets window size, sends `show-setup`
+- Mouse passthrough: `setIgnoreMouseEvents(false)` during setup, `setIgnoreMouseEvents(true, { forward: true })` during overlay (toggled off on card hover)
 
 ### Overlay card (`frontend/index.html`)
 Sections (always visible unless noted):
@@ -52,11 +61,11 @@ IPC events from Python → renderer:
 - `show-setup` / `show-overlay` — switches between screens
 
 ## File overview
-- `frontend/main.js` — Electron entry: handles setup IPC, spawns venv Python, reads stdout, bridges to renderer
+- `frontend/main.js` — Electron entry: loads .env, handles setup IPC, spawns venv Python, reads stdout, bridges to renderer
 - `frontend/index.html` — setup screen + transparent overlay UI (vanilla JS, no framework)
 - `backend/main.py` — Python entry: wires audio → STT → detector → LLM classifier → answerer, emits JSON events
-- `backend/audio.py` — cross-platform audio capture (parec on Linux, sounddevice on macOS), overlapping 2.4s chunks with 0.8s step
-- `backend/stt.py` — faster-whisper tiny transcription with per-word timestamps, vad_filter=True
+- `backend/audio.py` — macOS audio capture (sounddevice), overlapping 2.4s chunks with 0.8s step
+- `backend/stt.py` — faster-whisper base transcription with per-word timestamps, vad_filter=True
 - `backend/detector.py` — heuristic gate: `should_check_llm(text, name, team, project)` fires on name/team/project reference OR question pattern; also `is_mentioned()` for simple name check
 - `backend/detector_llm.py` — LLM classifier: `classify(context, name)` returns `"question"`, `"mention"`, or `"none"` via Claude Haiku
 - `backend/answerer.py` — Claude Haiku API call with profile + summary + 100-word context + optional meeting doc; returns `{answer, follow_up}`
@@ -88,15 +97,15 @@ IPC events from Python → renderer:
 - Follow-up question: answerer optionally appends a follow-up on a new line starting with `Follow-up:`, parsed out and shown separately in the overlay
 - Profile written from setup screen at meeting start, not hardcoded
 - venv Python used by Electron to avoid system Python package conflicts
-- **Whisper tiny** used for speed (~247ms/chunk); punctuation accuracy is acceptable for `?` wait logic
+- **Whisper base** used for accuracy; faster-whisper with int8 quantization runs on CPU
 
 ## Data flow
 ```
-parec/sounddevice → raw PCM at AUDIO_SAMPLE_RATE
+sounddevice → raw PCM at AUDIO_SAMPLE_RATE
     ↓
 audio.py  →  overlapping 2.4s chunks, advancing 0.8s per step
     ↓
-stt.py    →  faster-whisper tiny → (word, start, end) tuples
+stt.py    →  faster-whisper base → (word, start, end) tuples
     ↓
 main.py   →  per word (timestamp-deduplicated, confirmed only):
               - emit transcript (last 50 chars) + 20-word context to frontend
@@ -119,23 +128,20 @@ frontend  →  transcript → live caption strip (50 chars)
 ```
 
 ## Latency
-0.8s chunk step + ~247ms Whisper tiny + 0–3s ? wait + ~300ms LLM classify + ~1.5s Claude Haiku answer = **~3.0–6.0s** after question ends
-
-Typical case (~1s after question ends): **~4.0s**
+0.8s chunk step + ~300ms Whisper base + 0–3s ? wait + ~300ms LLM classify + ~1.5s Claude Haiku answer = **~3.0–6.0s** after question ends
 
 ## Setup
 ```bash
 ./setup.sh
-export ANTHROPIC_API_KEY=your_key_here
+# Create .env in project root:
+echo 'ANTHROPIC_API_KEY=sk-ant-...' > .env
 npm start
 # Fill in name + job title in setup screen, optionally attach a context file
 ```
 
-## Linux loopback
-Audio is captured from system output (not mic) via `parec`. Set `AUDIO_DEVICE` in `config.py`:
-```bash
-pactl list sources short  # find the line ending in .monitor
-```
-
-## macOS
-Set `AUDIO_DEVICE = "BlackHole 2ch"` in `config.py` (requires BlackHole virtual audio driver).
+## macOS audio setup
+- **Mic**: `MacBook Pro Microphone` — works out of the box, set as `MIC_DEVICE` in `config.py`
+- **System audio loopback**: requires BlackHole 2ch (`brew install blackhole-2ch`)
+  - After install, log out and back in for the driver to register
+  - In **Audio MIDI Setup**: create a Multi-Output Device with both MacBook Pro Speakers + BlackHole 2ch so audio plays through speakers while also being captured
+  - Set `AUDIO_DEVICE = "BlackHole 2ch"` in `config.py` (already set)

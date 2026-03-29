@@ -31,6 +31,21 @@ def stream(callback=None):
         yield from _stream_parec(callback)
 
 
+def stream_steps_mic():
+    """Same as stream_steps() but captures from MIC_DEVICE."""
+    step_samples = int(config.AUDIO_SAMPLE_RATE * STEP_SECONDS)
+    with sd.InputStream(
+        device=config.MIC_DEVICE,
+        samplerate=config.AUDIO_SAMPLE_RATE,
+        channels=1,
+        dtype="float32",
+        blocksize=step_samples,
+    ) as s:
+        while True:
+            chunk, _ = s.read(step_samples)
+            yield chunk.flatten()
+
+
 def stream_steps():
     """
     Yields raw non-overlapping float32 step-sized chunks (AUDIO_STEP_SECONDS each).

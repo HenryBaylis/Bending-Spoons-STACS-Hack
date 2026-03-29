@@ -3,6 +3,21 @@ const path = require('path')
 const fs = require('fs')
 const { spawn } = require('child_process')
 
+// Load .env from project root
+const envPath = path.join(__dirname, '../.env')
+if (fs.existsSync(envPath)) {
+  const lines = fs.readFileSync(envPath, 'utf8').split('\n')
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eq = trimmed.indexOf('=')
+    if (eq === -1) continue
+    const key = trimmed.slice(0, eq).trim()
+    const val = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, '')
+    process.env[key] = val
+  }
+}
+
 let win
 let python
 let contextFilePath = null
@@ -46,7 +61,7 @@ function spawnPython(env = {}) {
         const event = JSON.parse(line)
         if (event.type === 'mention') {
           win.webContents.send('mention', event)
-        } else if (event.type === 'transcript' || event.type === 'summary') {
+        } else if (event.type === 'transcript' || event.type === 'summary' || event.type === 'input_transcript') {
           win.webContents.send(event.type, event)
         } else if (event.type === 'question') {
           win.webContents.send('question', event)
@@ -109,8 +124,8 @@ function startMeeting(payload) {
 
   // Switch to overlay mode
   const { width, height } = screen.getPrimaryDisplay().workAreaSize
-  win.setSize(840, 260)
-  win.setPosition(width - 860, height - 200)
+  win.setSize(840, 560)
+  win.setPosition(width - 860, height - 580)
   win.webContents.send('show-overlay')
 }
 
